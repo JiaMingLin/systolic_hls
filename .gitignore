@@ -30,3 +30,11 @@
 *.exe
 *.out
 *.app
+
+solution*
+hls*
+.apc
+.cproject
+.project
+.settings
+.vitis*
