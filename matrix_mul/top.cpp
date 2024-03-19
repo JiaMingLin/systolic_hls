@@ -12,16 +12,12 @@ void A_IO_L3_in(A_t4 *A, hls::stream<A_t4> &fifo_A_local_out){
 
 void A_IO_L2_in(int idx, hls::stream<A_t4> &fifo_A_in, hls::stream<A_t4> &fifo_A_out, hls::stream<A_t1> &fifo_A_local_out){
 
-    A_t4 local_A;
+    A_t4 local_A = fifo_A_in.read();
 
     // inter PE
-    for(int i = idx; i < 4; i++){
+    for(int i = idx+1; i < 4; i++){
 #pragma PIPELINE II=1
-    	if(i = idx){
-    		local_A = fifo_A_in.read();
-    	}else{
-    		fifo_A_out.write(fifo_A_in.read());
-    	}
+    	fifo_A_out.write(fifo_A_in.read());
     }
 
     // intra PE
@@ -36,35 +32,31 @@ void A_IO_L2_in(int idx, hls::stream<A_t4> &fifo_A_in, hls::stream<A_t4> &fifo_A
 
 void A_IO_L2_in_boundary(hls::stream<A_t4> &fifo_A_in, hls::stream<A_t1> &fifo_A_local_out){
 
-	A_t4 local_A;
+	A_t4 local_A = fifo_A_in.read();;
 	A_t1 data_in;
 
 	for(int i = 0; i < 4; i++){
 #pragma PIPELINE II=1
-		local_A = fifo_A_in.read();
 		data_in = local_A(31,0);
 		local_A = local_A >> 32;
 		fifo_A_local_out.write(data_in);
 	}
 }
 
-void PE(int idx, hls::stream<A_t1> &fifo_A_local_in, hls::steam<C_t1> &fifo_C_local_out){
+void PE(int idx, hls::stream<A_t1> &fifo_A_local_in, hls::stream<C_t1> &fifo_C_local_out){
 	A_t1 data_A_in;
 	B_t1 data_B_in = idx;
-	C_t1 partial_sum;
+	C_t1 partial_sum = 0;
 
 	for(int i = 0; i < 4; i++){
 		data_A_in = fifo_A_local_in.read();
 		partial_sum += data_A_in * data_B_in;
-
-		if(i == 3){
-			fifo_C_local_out.write(partial_sum);
-		}
 	}
+	fifo_C_local_out.write(partial_sum);
 }
 
 
-void C_drain_IO_L1_out(int idx, hls::steam<C_t1> &fifo_C_local_in, hls::stream<C_t1> &fifo_C_inter_in, hls::steam<C_t1> &fifo_C_drain_out){
+void C_drain_IO_L1_out(int idx, hls::stream<C_t1> &fifo_C_local_in, hls::stream<C_t1> &fifo_C_inter_in, hls::stream<C_t1> &fifo_C_drain_out){
 	C_t1 data_in;
 
 	for(int i = idx; i < 4; i++){
@@ -78,20 +70,22 @@ void C_drain_IO_L1_out(int idx, hls::steam<C_t1> &fifo_C_local_in, hls::stream<C
 }
 
 
-void C_drain_IO_L1_out_boundary(hls::steam<C_t1> &fifo_C_local_in, hls::stream<C_t1> &fifo_C_drain_out){
+void C_drain_IO_L1_out_boundary(hls::stream<C_t1> &fifo_C_local_in, hls::stream<C_t1> &fifo_C_drain_out){
 
 	C_t1 data_in = fifo_C_local_in.read();
 	fifo_C_drain_out.write(data_in);
 }
 
-void C_drain_IO_L2_out(hls::steam<C_t1> &fifo_C_drain_in, hls::stream<C_t4> &fifo_C_drain_out){
+void C_drain_IO_L2_out(hls::stream<C_t1> &fifo_C_drain_in, hls::stream<C_t4> &fifo_C_drain_out){
 
-	C_t1 data_in;
-	C_t4 data_out;
-	for(int i = 0; i < 4; i++){
+	C_t4 data_out = 0;
+	C_t1 data_in = fifo_C_drain_in.read();
+	data_out(31,0) = data_in;
+
+	for(int i = 1; i < 4; i++){
 		data_in = fifo_C_drain_in.read();
-		data_out(31, 0);
-		data_out << 32;
+		data_out = data_out << 32;
+		data_out(31, 0) = data_in;
 	}
 	fifo_C_drain_out.write(data_out);
 }
@@ -104,6 +98,7 @@ void C_drain_IO_L3_out(hls::stream<C_t4> &fifo_C_drain_out, C_t4 *C){
 
 void kernel0(A_t4 *A, C_t4 *C){
 
+#pragma HLS DATAFLOW
 	hls::stream<A_t4> fifo_A_t4_L3_out;
 	hls::stream<A_t4> fifo_A_t4_L2_inter_0;
 	hls::stream<A_t4> fifo_A_t4_L2_inter_1;
