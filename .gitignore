@@ -39,3 +39,4 @@ hls_prj*
 .settings
 .vitis*
 *.log
+.vscode

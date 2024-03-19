@@ -17,15 +17,15 @@ typedef ap_uint<128> C_t4;
 typedef float        C_t1;
 /* Data Type */
 
-void kernel0(A_t4 *A, B_t4 *B, C_t4 *C);
-void A_IO_L3_in(hls::stream<A_t4> &fifo_A_in, hls::stream<A_t4> &fifo_A_local_out);
-void A_IO_L3_in_serialize(A_t4 *A, hls::stream<A_t4> &fifo_A_local_out);
+void A_IO_L3_in(A_t4 *A, hls::stream<A_t4> &fifo_A_local_out);
+void A_IO_L2_in(int idx, hls::stream<A_t4> &fifo_A_in, hls::stream<A_t4> &fifo_A_out, hls::stream<A_t1> &fifo_A_local_out);
+void A_IO_L2_in_boundary(hls::stream<A_t4> &fifo_A_in, hls::stream<A_t1> &fifo_A_local_out);
 
-//void A_IO_L2_in_intra_trans(int idx, A_t4 local_A[1][1], hls::stream<float> &fifo_A_local_out, bool intra_trans_en);
-//void A_IO_L2_in_inter_trans(int idx, A_t4 local_A[1][1], hls::stream<A_t4> &fifo_A_in, hls::stream<A_t4> &fifo_A_out, bool inter_trans_en);
-//void A_IO_L2_in_inter_trans_boundary(int idx, A_t4 local_A[1][1], hls::stream<A_t4> &fifo_A_in, bool inter_trans_en);
+void PE(int idx, hls::stream<A_t1> &fifo_A_local_in, hls::stream<C_t1> &fifo_C_local_out);
 
-void A_IO_L2_in(int idx, hls::stream<A_t4> &fifo_A_in, hls::stream<A_t4> &fifo_A_out, hls::stream<float> &fifo_A_local_out);
-void A_IO_L2_in_boundary(int idx, hls::stream<A_t4> &fifo_A_in, hls::stream<float> &fifo_A_local_out);
+void C_drain_IO_L1_out(int idx, hls::stream<C_t1> &fifo_C_local_in, hls::stream<C_t1> &fifo_C_inter_in, hls::stream<C_t1> &fifo_C_drain_out);
+void C_drain_IO_L1_out_boundary(hls::stream<C_t1> &fifo_C_local_in, hls::stream<C_t1> &fifo_C_drain_out);
+void C_drain_IO_L2_out(hls::stream<C_t1> &fifo_C_drain_in, hls::stream<C_t4> &fifo_C_drain_out);
+void C_drain_IO_L3_out(hls::stream<C_t4> &fifo_C_drain_out, C_t4 *C);
 
-void C_IO_L2_out(int idx, float local_c, hls::stream<float> &c_out);
+void kernel0(A_t4 *A, C_t4 *C);
