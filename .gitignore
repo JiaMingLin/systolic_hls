@@ -32,9 +32,10 @@
 *.app
 
 solution*
-hls*
+hls_prj*
 .apc
 .cproject
 .project
 .settings
 .vitis*
+*.log
