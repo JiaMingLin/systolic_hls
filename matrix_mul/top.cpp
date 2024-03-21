@@ -57,7 +57,7 @@ void PE(int idx, hls::stream<A_t1> &fifo_A_local_in, hls::stream<C_t1> &fifo_C_l
 	B_t1 data_B_in = idx;
 	C_t1 partial_sum = 0;
 
-	for(int i = 0; i < 4; i++){
+	PE_LOOP: for(int i = 0; i < 4; i++){
 #pragma PIPELINE II=1
 		data_A_in = fifo_A_local_in.read();
 		partial_sum += data_A_in * data_B_in;
