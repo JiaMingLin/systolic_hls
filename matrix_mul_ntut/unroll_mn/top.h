@@ -1,10 +1,12 @@
 #include<ap_int.h>
 
-#define N 32
-#define M 32
-#define P 32
-#define DATA_WIDTH 16
+#define N 16
+#define M 16
+#define P 16
+#define DATA_WIDTH 4
 
 typedef ap_uint<DATA_WIDTH> DTYPE;
+typedef ap_uint<DATA_WIDTH*2> PSUM;
 
 void top(DTYPE A[N][M], DTYPE B[M][P], DTYPE AB[N][P]);
+PSUM pe(DTYPE a, DTYPE b, PSUM c);
