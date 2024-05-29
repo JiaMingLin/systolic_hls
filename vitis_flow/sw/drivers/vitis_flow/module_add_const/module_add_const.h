@@ -10,16 +10,16 @@ namespace XLNX{
 class AddConstant{
 
 public:
-	FeedHandler();
-	virtual ~FeedHandler();
+	AddConstant();
+	virtual ~AddConstant();
 
 public:
 	uint32_t Initialise(DeviceInterface* pDeviceInterface, const char* cuName);
 
 public:
-    uint32_t Start(void);
-    uint32_t Stop(void);
-    uint32_t IsRunning(bool* pbIsRunning);
+    // uint32_t Start(void);
+    // uint32_t Stop(void);
+    // uint32_t IsRunning(bool* pbIsRunning);
 
 public:
     void IsInitialised(bool* pbIsInitialised);
