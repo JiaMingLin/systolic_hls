@@ -29,13 +29,14 @@ public:
 
 public:
     uint32_t StartHWKernel(void);
-    uint32_t IsHWKernelRunning(bool* pbIsRunning);
+    // uint32_t IsHWKernelRunning(bool* pbIsRunning);
     std::ofstream fout;
 
 public:
     // static const uint32_t RING_SIZE             = 65536; //elements;
-    static const uint32_t READ_ELEMENT_SIZE     = 128; //bytes
-    static const uint32_t WRITE_ELEMENT_SIZE    = 32; //bytes
+    static const uint32_t DATA_SIZE             = 65536;
+    static const uint32_t READ_ELEMENT_SIZE     = 64; //bytes
+    // static const uint32_t WRITE_ELEMENT_SIZE    = 32; //bytes
 
     uint32_t SetupBuffersIfNecessary(void);
 
@@ -119,8 +120,8 @@ protected:
     // uint32_t CleanupBufferObjectsFromHostBank(void);
     uint32_t CleanupBufferObjectsFromCardRAM(void);
 
-    uint32_t SetHWReadBufferAddress(uint64_t address);
-    uint32_t SetHWWriteBufferAddress(uint64_t address);
+    // uint32_t SetHWReadBufferAddress(uint64_t address);
+    // uint32_t SetHWWriteBufferAddress(uint64_t address);
 
     uint32_t SyncReadBufferInternal(void);
     uint32_t SetHWRingReadHeadIndex(uint32_t headIndex);
@@ -132,12 +133,6 @@ protected: //IO
     uint32_t BlockReadReg32(uint64_t offset, uint32_t* buffer, uint32_t numWords);
 
     uint32_t BlockReadMem32(uint64_t address, uint32_t* buffer, uint32_t numWords);
-
-
-
-
-
-
 
 
 // public: //Processing Thread

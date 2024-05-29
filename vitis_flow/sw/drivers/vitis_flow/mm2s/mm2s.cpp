@@ -88,7 +88,7 @@ uint32_t MM2S::Initialise(DeviceInterface* pDeviceInterface, const char* cuName)
 	retval = m_pDeviceInterface->GetCUAddress(cuName, &m_cuAddress);
 	if (retval != XLNX_OK)
 	{
-		retval = mm2s_ERROR_CU_NAME_NOT_FOUND;
+		retval = MM2S_ERROR_CU_NAME_NOT_FOUND;
 	}
 
 
@@ -97,7 +97,7 @@ uint32_t MM2S::Initialise(DeviceInterface* pDeviceInterface, const char* cuName)
 		retval = m_pDeviceInterface->GetCUIndex(cuName, &m_cuIndex);
 		if (retval != XLNX_OK)
 		{
-			retval = mm2s_ERROR_CU_NAME_NOT_FOUND;
+			retval = MM2S_ERROR_CU_NAME_NOT_FOUND;
 		}
 	}
 
@@ -107,27 +107,27 @@ uint32_t MM2S::Initialise(DeviceInterface* pDeviceInterface, const char* cuName)
 		retval = m_pDeviceInterface->GetArgumentMemTopologyIndex(cuName, KERNEL_MEMORY_ARGUMENT_READ_BUFFER_INDEX, &m_readBufferMemTopologyIndex);
 		if (retval != XLNX_OK)
 		{
-			retval = mm2s_ERROR_CU_NAME_NOT_FOUND;
+			retval = MM2S_ERROR_CU_NAME_NOT_FOUND;
 		}
 	}
 
 
 
 
-	if (retval == XLNX_OK)
-	{
-		retval = m_pDeviceInterface->TopologyIndexIsHostBank(m_readBufferMemTopologyIndex, &bHostBank);
-		if (retval == XLNX_OK)
-		{
-			if (bHostBank)
-			{
-				//NOTE - we are assuming both read and write buffers are connected to the same bank...
-				//      i.e. either both are connected to a CARD RAM bank, or both are connected to HOST BANK
-				m_hostBankMemoryTopologyIndex = m_readBufferMemTopologyIndex;
-				m_bUsingHostBank = true;
-			}
-		}
-	}
+	// if (retval == XLNX_OK)
+	// {
+	// 	retval = m_pDeviceInterface->TopologyIndexIsHostBank(m_readBufferMemTopologyIndex, &bHostBank);
+	// 	if (retval == XLNX_OK)
+	// 	{
+	// 		if (bHostBank)
+	// 		{
+	// 			//NOTE - we are assuming both read and write buffers are connected to the same bank...
+	// 			//      i.e. either both are connected to a CARD RAM bank, or both are connected to HOST BANK
+	// 			m_hostBankMemoryTopologyIndex = m_readBufferMemTopologyIndex;
+	// 			m_bUsingHostBank = true;
+	// 		}
+	// 	}
+	// }
 
 
 
@@ -137,27 +137,27 @@ uint32_t MM2S::Initialise(DeviceInterface* pDeviceInterface, const char* cuName)
 		retval = m_pDeviceInterface->GetArgumentMemTopologyIndex(cuName, KERNEL_MEMORY_ARGUMENT_WRITE_BUFFER_INDEX, &m_writeBufferMemTopologyIndex);
 		if(retval != XLNX_OK)
 		{
-			retval = mm2s_ERROR_CU_NAME_NOT_FOUND;
+			retval = MM2S_ERROR_CU_NAME_NOT_FOUND;
 		}
 	}
 
 
 
 
-	if (retval == XLNX_OK)
-	{
-		retval = m_pDeviceInterface->TopologyIndexIsHostBank(m_writeBufferMemTopologyIndex, &bHostBank);
-		if (retval == XLNX_OK)
-		{
-			if (bHostBank)
-			{
-				//NOTE - we are assuming both read and write buffers are connected to the same bank...
-				//      i.e. either both are connected to a CARD RAM bank, or both are connected to HOST BANK
-				m_hostBankMemoryTopologyIndex = m_writeBufferMemTopologyIndex;
-				m_bUsingHostBank = true;
-			}
-		}
-	}
+	// if (retval == XLNX_OK)
+	// {
+	// 	retval = m_pDeviceInterface->TopologyIndexIsHostBank(m_writeBufferMemTopologyIndex, &bHostBank);
+	// 	if (retval == XLNX_OK)
+	// 	{
+	// 		if (bHostBank)
+	// 		{
+	// 			//NOTE - we are assuming both read and write buffers are connected to the same bank...
+	// 			//      i.e. either both are connected to a CARD RAM bank, or both are connected to HOST BANK
+	// 			m_hostBankMemoryTopologyIndex = m_writeBufferMemTopologyIndex;
+	// 			m_bUsingHostBank = true;
+	// 		}
+	// 	}
+	// }
 
 
 
@@ -178,11 +178,11 @@ uint32_t MM2S::Initialise(DeviceInterface* pDeviceInterface, const char* cuName)
 
 
 
-	if (retval == XLNX_OK)
-	{
-		//NOTE - keep the following after the setting of the IS_INITIALISED magic number...
-		InitialiseRingIndexes();
-	}
+	// if (retval == XLNX_OK)
+	// {
+	// 	//NOTE - keep the following after the setting of the IS_INITIALISED magic number...
+	// 	InitialiseRingIndexes();
+	// }
 
 
 	return retval;
@@ -196,7 +196,7 @@ uint32_t MM2S::Uninitialise(void)
 {
 	uint32_t retval = XLNX_OK;
 
-	retval = StopProcessingThread();
+	// retval = StopProcessingThread();
 
 	if (retval == XLNX_OK)
 	{
@@ -217,16 +217,11 @@ uint32_t MM2S::CheckIsInitialised(void)
 
 	if (m_initialisedMagicNumber != IS_INITIALISED_MAGIC_NUMBER)
 	{
-		retval = mm2s_ERROR_NOT_INITIALISED;
+		retval = MM2S_ERROR_NOT_INITIALISED;
 	}
 
 	return retval;
 }
-
-
-
-
-
 
 
 void MM2S::IsInitialised(bool* pbIsInitialised)
@@ -313,39 +308,33 @@ uint32_t MM2S::GetWriteBufferCUMemTopologyIndex(uint32_t* pMemTopologyIndex)
 
 
 
-uint32_t MM2S::InitialiseRingIndexes(void)
-{
-	uint32_t retval = XLNX_OK;
-	uint32_t readHeadIndex;
-	uint32_t readTailIndex;
-	uint32_t writeHeadIndex;
-	uint32_t writeTailIndex;
+// uint32_t MM2S::InitialiseRingIndexes(void)
+// {
+// 	uint32_t retval = XLNX_OK;
+// 	uint32_t readHeadIndex;
+// 	uint32_t readTailIndex;
+// 	uint32_t writeHeadIndex;
+// 	uint32_t writeTailIndex;
 
-	retval = GetHWRingReadBufferIndexes(&readHeadIndex, &readTailIndex);
+// 	retval = GetHWRingReadBufferIndexes(&readHeadIndex, &readTailIndex);
 
-	if (retval == XLNX_OK)
-	{
-		retval = GetHWRingWriteBufferIndexes(&writeHeadIndex, &writeTailIndex);
-	}
-
-
-	if (retval == XLNX_OK)
-	{
-		m_lastReadHeadIndex = readHeadIndex;
-		m_lastReadTailIndex = readTailIndex;
-
-		m_lastWriteHeadIndex = writeHeadIndex;
-		m_lastWriteTailIndex = writeTailIndex;
-	}
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = GetHWRingWriteBufferIndexes(&writeHeadIndex, &writeTailIndex);
+// 	}
 
 
+// 	if (retval == XLNX_OK)
+// 	{
+// 		m_lastReadHeadIndex = readHeadIndex;
+// 		m_lastReadTailIndex = readTailIndex;
 
+// 		m_lastWriteHeadIndex = writeHeadIndex;
+// 		m_lastWriteTailIndex = writeTailIndex;
+// 	}
 
-
-
-
-	return retval;
-}
+// 	return retval;
+// }
 
 
 
@@ -381,54 +370,39 @@ uint32_t MM2S::StartHWKernel(void)
 		value = AP_START | AP_CONTINUE;
 		mask = value;
 
-		retval = WriteRegWithMask32(mm2s_KERNEL_CONTROL_OFFSET, value, mask);
+		retval = WriteRegWithMask32(MM2S_KERNEL_CONTROL_OFFSET, value, mask);
 	}
 
 	return retval;
 }
 
 
+// uint32_t MM2S::IsHWKernelRunning(bool* pbIsRunning)
+// {
+// 	uint32_t retval = XLNX_OK;
+// 	uint32_t value;
 
+// 	retval = CheckIsInitialised();
 
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = ReadReg32(MM2S_KERNEL_CONTROL_OFFSET, &value);
+// 	}
 
+// 	if (retval == XLNX_OK)
+// 	{
+// 		if (value & 0x01)
+// 		{
+// 			*pbIsRunning = true;
+// 		}
+// 		else
+// 		{
+// 			*pbIsRunning = false;
+// 		}
+// 	}
 
-
-
-
-
-
-
-uint32_t MM2S::IsHWKernelRunning(bool* pbIsRunning)
-{
-	uint32_t retval = XLNX_OK;
-	uint32_t value;
-
-	retval = CheckIsInitialised();
-
-	if (retval == XLNX_OK)
-	{
-		retval = ReadReg32(mm2s_KERNEL_CONTROL_OFFSET, &value);
-	}
-
-	if (retval == XLNX_OK)
-	{
-		if (value & 0x01)
-		{
-			*pbIsRunning = true;
-		}
-		else
-		{
-			*pbIsRunning = false;
-		}
-	}
-
-	return retval;
-}
-
-
-
-
-
+// 	return retval;
+// }
 
 
 uint32_t MM2S::ReadReg32(uint64_t offset, uint32_t* value)
@@ -441,20 +415,13 @@ uint32_t MM2S::ReadReg32(uint64_t offset, uint32_t* value)
 
 	retval = m_pDeviceInterface->ReadReg32(address, value);
 
-
-
-
 	if (retval != XLNX_OK)
 	{
-		retval = mm2s_ERROR_IO_FAILED;
+		retval = MM2S_ERROR_IO_FAILED;
 	}
 
 	return retval;
 }
-
-
-
-
 
 
 uint32_t MM2S::WriteReg32(uint64_t offset, uint32_t value)
@@ -470,7 +437,7 @@ uint32_t MM2S::WriteReg32(uint64_t offset, uint32_t value)
 
 	if (retval != XLNX_OK)
 	{
-		retval = mm2s_ERROR_IO_FAILED;
+		retval = MM2S_ERROR_IO_FAILED;
 	}
 
 	return retval;
@@ -491,7 +458,7 @@ uint32_t MM2S::WriteRegWithMask32(uint64_t offset, uint32_t value, uint32_t mask
 
 	if (retval != XLNX_OK)
 	{
-		retval = mm2s_ERROR_IO_FAILED;
+		retval = MM2S_ERROR_IO_FAILED;
 	}
 
 	return retval;
@@ -512,7 +479,7 @@ uint32_t MM2S::BlockReadReg32(uint64_t offset, uint32_t* buffer, uint32_t numWor
 
 	if (retval != XLNX_OK)
 	{
-		retval = mm2s_ERROR_IO_FAILED;
+		retval = MM2S_ERROR_IO_FAILED;
 	}
 
 	return retval;
@@ -530,7 +497,7 @@ uint32_t MM2S::BlockReadMem32(uint64_t address, uint32_t* buffer, uint32_t numWo
 
 	if (retval != XLNX_OK)
 	{
-		retval = mm2s_ERROR_IO_FAILED;
+		retval = MM2S_ERROR_IO_FAILED;
 	}
 
 	return retval;
@@ -547,14 +514,16 @@ uint32_t MM2S::SetupBufferObjects(void)
 {
 	uint32_t retval = XLNX_OK;
 
-	if (m_bUsingHostBank)
-	{
-		retval = SetupBufferObjectsFromHostBank();
-	}
-	else
-	{
-		retval = SetupBufferObjectsFromCardRAM();
-	}
+	// if (m_bUsingHostBank)
+	// {
+	// 	retval = SetupBufferObjectsFromHostBank();
+	// }
+	// else
+	// {
+	// 	retval = SetupBufferObjectsFromCardRAM();
+	// }
+
+	retval = SetupBufferObjectsFromCardRAM();
 
 	return retval;
 }
@@ -567,14 +536,16 @@ uint32_t MM2S::CleanupBufferObjects(void)
 {
 	uint32_t retval = XLNX_OK;
 
-	if (m_bUsingHostBank)
-	{
-		CleanupBufferObjectsFromHostBank();
-	}
-	else
-	{
-		CleanupBufferObjectsFromCardRAM();
-	}
+	// if (m_bUsingHostBank)
+	// {
+	// 	CleanupBufferObjectsFromHostBank();
+	// }
+	// else
+	// {
+	// 	CleanupBufferObjectsFromCardRAM();
+	// }
+
+	CleanupBufferObjectsFromCardRAM();
 
 	return retval;
 }
@@ -588,89 +559,89 @@ uint32_t MM2S::CleanupBufferObjects(void)
 
 
 
-uint32_t MM2S::SetupBufferObjectsFromHostBank(void)
-{
-	uint32_t retval = XLNX_OK;
+// uint32_t MM2S::SetupBufferObjectsFromHostBank(void)
+// {
+// 	uint32_t retval = XLNX_OK;
 
-	uint32_t totalBytesToAllocate;
-	uint64_t bufferHWAddress;
+// 	uint32_t totalBytesToAllocate;
+// 	uint64_t bufferHWAddress;
 
-	uint32_t readBufferSize;
-	uint32_t writeBufferSize;
-
-
-
-	//When using the HOST BANK, XRT currently seems to treat it as one large buffer
-
-
-	readBufferSize = RING_SIZE * READ_ELEMENT_SIZE;
-	writeBufferSize = RING_SIZE * WRITE_ELEMENT_SIZE;
-
-	totalBytesToAllocate = readBufferSize + writeBufferSize;
-
-
-	m_pHostBankBufferDescriptor = m_pDeviceInterface->AllocateBufferHostOnly(totalBytesToAllocate, m_hostBankMemoryTopologyIndex);
-	if (m_pHostBankBufferDescriptor == nullptr)
-	{
-		retval = mm2s_ERROR_FAILED_TO_ALLOCATE_BUFFER_OBJECT;
-	}
-
-
-	if (retval == XLNX_OK)
-	{
-		bufferHWAddress = m_pDeviceInterface->GetDeviceBufferAddress(m_pHostBankBufferDescriptor);
-	}
-
-
-	if (retval == XLNX_OK)
-	{
-		retval = m_pDeviceInterface->MapBufferToUserspace(m_pHostBankBufferDescriptor, DeviceInterface::BufferMapType::READ_WRITE, &m_hostBankBufferVirtualAddress);
-		if (retval != XLNX_OK)
-		{
-			retval = mm2s_ERROR_FAILED_TO_MAP_BUFFER_OBJECT;
-		}
-	}
-
-	//Set up the HOST VIRTUAL ADDRESSES...
-	if (retval == XLNX_OK)
-	{
-		uint8_t* address = (uint8_t*)m_hostBankBufferVirtualAddress;
-
-		m_readBufferHostVirtualAddress = address;
-		address += readBufferSize;
-
-		m_writeBufferHostVirtualAddress = address;
-		address += writeBufferSize;
-	}
+// 	uint32_t readBufferSize;
+// 	uint32_t writeBufferSize;
 
 
 
-	//Set up the HW ADDRESSES...
-	if (retval == XLNX_OK)
-	{
-		uint64_t address = bufferHWAddress;
-
-		m_readBufferHWAddress = address;
-		address += readBufferSize;
-
-		m_writeBufferHWAddress = address;
-		address += writeBufferSize;
-	}
+// 	//When using the HOST BANK, XRT currently seems to treat it as one large buffer
 
 
-	//Tell the kernel about the buffer addresses...
-	if (retval == XLNX_OK)
-	{
-		retval = SetHWReadBufferAddress(m_readBufferHWAddress);
-	}
+// 	readBufferSize = RING_SIZE * READ_ELEMENT_SIZE;
+// 	writeBufferSize = RING_SIZE * WRITE_ELEMENT_SIZE;
 
-	if (retval == XLNX_OK)
-	{
-		retval = SetHWWriteBufferAddress(m_writeBufferHWAddress);
-	}
+// 	totalBytesToAllocate = readBufferSize + writeBufferSize;
 
-	return retval;
-}
+
+// 	m_pHostBankBufferDescriptor = m_pDeviceInterface->AllocateBufferHostOnly(totalBytesToAllocate, m_hostBankMemoryTopologyIndex);
+// 	if (m_pHostBankBufferDescriptor == nullptr)
+// 	{
+// 		retval = mm2s_ERROR_FAILED_TO_ALLOCATE_BUFFER_OBJECT;
+// 	}
+
+
+// 	if (retval == XLNX_OK)
+// 	{
+// 		bufferHWAddress = m_pDeviceInterface->GetDeviceBufferAddress(m_pHostBankBufferDescriptor);
+// 	}
+
+
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = m_pDeviceInterface->MapBufferToUserspace(m_pHostBankBufferDescriptor, DeviceInterface::BufferMapType::READ_WRITE, &m_hostBankBufferVirtualAddress);
+// 		if (retval != XLNX_OK)
+// 		{
+// 			retval = mm2s_ERROR_FAILED_TO_MAP_BUFFER_OBJECT;
+// 		}
+// 	}
+
+// 	//Set up the HOST VIRTUAL ADDRESSES...
+// 	if (retval == XLNX_OK)
+// 	{
+// 		uint8_t* address = (uint8_t*)m_hostBankBufferVirtualAddress;
+
+// 		m_readBufferHostVirtualAddress = address;
+// 		address += readBufferSize;
+
+// 		m_writeBufferHostVirtualAddress = address;
+// 		address += writeBufferSize;
+// 	}
+
+
+
+// 	//Set up the HW ADDRESSES...
+// 	if (retval == XLNX_OK)
+// 	{
+// 		uint64_t address = bufferHWAddress;
+
+// 		m_readBufferHWAddress = address;
+// 		address += readBufferSize;
+
+// 		m_writeBufferHWAddress = address;
+// 		address += writeBufferSize;
+// 	}
+
+
+// 	//Tell the kernel about the buffer addresses...
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = SetHWReadBufferAddress(m_readBufferHWAddress);
+// 	}
+
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = SetHWWriteBufferAddress(m_writeBufferHWAddress);
+// 	}
+
+// 	return retval;
+// }
 
 
 
@@ -685,11 +656,11 @@ uint32_t MM2S::SetupBufferObjectsFromCardRAM(void)
 
 	// The HW kernel is connected to CARD RAM.  This means we need to allocate a BUFFER PAIR (i.e. HOST + CARD)
 	std::cout << (int)m_readBufferMemTopologyIndex << "\n";
-	m_pReadBufferDescriptor = m_pDeviceInterface->AllocateBufferPair(RING_SIZE * READ_ELEMENT_SIZE, m_readBufferMemTopologyIndex);
+	m_pReadBufferDescriptor = m_pDeviceInterface->AllocateBufferPair(DATA_SIZE * READ_ELEMENT_SIZE, m_readBufferMemTopologyIndex);
 
 	if (m_pReadBufferDescriptor == nullptr)
 	{
-		retval = mm2s_ERROR_FAILED_TO_ALLOCATE_BUFFER_OBJECT;
+		retval = MM2S_ERROR_FAILED_TO_ALLOCATE_BUFFER_OBJECT;
 	}
 
 
@@ -698,7 +669,7 @@ uint32_t MM2S::SetupBufferObjectsFromCardRAM(void)
 	// 	m_pWriteBufferDescriptor = m_pDeviceInterface->AllocateBufferPair(RING_SIZE * READ_ELEMENT_SIZE, m_writeBufferMemTopologyIndex);
 	// 	if (m_pWriteBufferDescriptor == nullptr)
 	// 	{
-	// 		retval = mm2s_ERROR_FAILED_TO_ALLOCATE_BUFFER_OBJECT;
+	// 		retval = MM2S_ERROR_FAILED_TO_ALLOCATE_BUFFER_OBJECT;
 	// 	}
 	// }
 
@@ -724,10 +695,10 @@ uint32_t MM2S::SetupBufferObjectsFromCardRAM(void)
 	//Retrieve the virtual address of the HOST BUFFERS
 	if (retval == XLNX_OK)
 	{
-		retval = m_pDeviceInterface->MapBufferToUserspace(m_pReadBufferDescriptor, DeviceInterface::BufferMapType::READ_ONLY, &m_readBufferHostVirtualAddress);
+		retval = m_pDeviceInterface->MapBufferToUserspace(m_pReadBufferDescriptor, DeviceInterface::BufferMapType::READ_WRITE, &m_readBufferHostVirtualAddress);
 		if (retval != XLNX_OK)
 		{    
-			retval = mm2s_ERROR_FAILED_TO_MAP_BUFFER_OBJECT;
+			retval = MM2S_ERROR_FAILED_TO_MAP_BUFFER_OBJECT;
 		}
 	}
 
@@ -742,14 +713,11 @@ uint32_t MM2S::SetupBufferObjectsFromCardRAM(void)
 
 
 
-
-
-
 	//Tell the kernel about the buffer addresses...
-	if (retval == XLNX_OK)
-	{ 
-		retval = SetHWReadBufferAddress(m_readBufferHWAddress);
-	}
+	// if (retval == XLNX_OK)
+	// { 
+	// 	retval = SetHWReadBufferAddress(m_readBufferHWAddress);
+	// }
 
 	// if (retval == XLNX_OK)
 	// {
@@ -765,79 +733,79 @@ uint32_t MM2S::SetupBufferObjectsFromCardRAM(void)
 
 
 
-uint32_t MM2S::SetHWReadBufferAddress(uint64_t address)
-{
-	uint32_t retval = XLNX_OK;
-	uint32_t upperWord;
-	uint32_t lowerWord;
+// uint32_t MM2S::SetHWReadBufferAddress(uint64_t address)
+// {
+// 	uint32_t retval = XLNX_OK;
+// 	uint32_t upperWord;
+// 	uint32_t lowerWord;
 
-	upperWord = (uint32_t)((address >> 32) & 0xFFFFFFFF);
-	lowerWord = (uint32_t)(address & 0xFFFFFFFF);
-
-
-	retval = WriteReg32(mm2s_READ_BUFFER_ADDRESS_LOWER_WORD_OFFSET, lowerWord);
+// 	upperWord = (uint32_t)((address >> 32) & 0xFFFFFFFF);
+// 	lowerWord = (uint32_t)(address & 0xFFFFFFFF);
 
 
-	if (retval == XLNX_OK)
-	{
-		retval = WriteReg32(mm2s_READ_BUFFER_ADDRESS_UPPER_WORD_OFFSET, upperWord);
-	}
-
-	return retval;
-}
+// 	retval = WriteReg32(MM2S_READ_BUFFER_ADDRESS_LOWER_WORD_OFFSET, lowerWord);
 
 
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = WriteReg32(MM2S_READ_BUFFER_ADDRESS_UPPER_WORD_OFFSET, upperWord);
+// 	}
+
+// 	return retval;
+// }
 
 
 
 
-uint32_t MM2S::SetHWWriteBufferAddress(uint64_t address)
-{
-	uint32_t retval = XLNX_OK;
-	uint32_t upperWord;
-	uint32_t lowerWord;
-
-	upperWord = (uint32_t)((address >> 32) & 0xFFFFFFFF);
-	lowerWord = (uint32_t)(address & 0xFFFFFFFF);
 
 
-	retval = WriteReg32(mm2s_WRITE_BUFFER_ADDRESS_LOWER_WORD_OFFSET, lowerWord);
+// uint32_t MM2S::SetHWWriteBufferAddress(uint64_t address)
+// {
+// 	uint32_t retval = XLNX_OK;
+// 	uint32_t upperWord;
+// 	uint32_t lowerWord;
+
+// 	upperWord = (uint32_t)((address >> 32) & 0xFFFFFFFF);
+// 	lowerWord = (uint32_t)(address & 0xFFFFFFFF);
 
 
-	if (retval == XLNX_OK)
-	{
-		retval = WriteReg32(mm2s_WRITE_BUFFER_ADDRESS_UPPER_WORD_OFFSET, upperWord);
-	}
-
-	return retval;
-}
+// 	retval = WriteReg32(MM2S_WRITE_BUFFER_ADDRESS_LOWER_WORD_OFFSET, lowerWord);
 
 
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = WriteReg32(MM2S_WRITE_BUFFER_ADDRESS_UPPER_WORD_OFFSET, upperWord);
+// 	}
 
-uint32_t MM2S::CleanupBufferObjectsFromHostBank(void)
-{
-	uint32_t retval = XLNX_OK;
+// 	return retval;
+// }
 
-	if (m_hostBankBufferVirtualAddress != nullptr)
-	{
-		m_pDeviceInterface->UnmapBufferFromUserspace(m_pHostBankBufferDescriptor, m_hostBankBufferVirtualAddress);
-		m_hostBankBufferVirtualAddress = nullptr;
-	}
 
-	if (m_pHostBankBufferDescriptor != nullptr)
-	{
-		m_pDeviceInterface->FreeBufferHostOnly(m_pHostBankBufferDescriptor);
-		m_pHostBankBufferDescriptor = nullptr;
-	}
 
-	m_readBufferHWAddress = INVALID_HW_BUFFER_ADDRESS;
-	m_writeBufferHWAddress = INVALID_HW_BUFFER_ADDRESS;
+// uint32_t MM2S::CleanupBufferObjectsFromHostBank(void)
+// {
+// 	uint32_t retval = XLNX_OK;
 
-	m_readBufferHostVirtualAddress = nullptr;
-	m_writeBufferHostVirtualAddress = nullptr;
+// 	if (m_hostBankBufferVirtualAddress != nullptr)
+// 	{
+// 		m_pDeviceInterface->UnmapBufferFromUserspace(m_pHostBankBufferDescriptor, m_hostBankBufferVirtualAddress);
+// 		m_hostBankBufferVirtualAddress = nullptr;
+// 	}
 
-	return retval;
-}
+// 	if (m_pHostBankBufferDescriptor != nullptr)
+// 	{
+// 		m_pDeviceInterface->FreeBufferHostOnly(m_pHostBankBufferDescriptor);
+// 		m_pHostBankBufferDescriptor = nullptr;
+// 	}
+
+// 	m_readBufferHWAddress = INVALID_HW_BUFFER_ADDRESS;
+// 	m_writeBufferHWAddress = INVALID_HW_BUFFER_ADDRESS;
+
+// 	m_readBufferHostVirtualAddress = nullptr;
+// 	m_writeBufferHostVirtualAddress = nullptr;
+
+// 	return retval;
+// }
 
 
 
@@ -912,29 +880,40 @@ uint64_t MM2S::GetReadBufferHWAddress(void)
 }
 
 
-
-
-
-uint32_t MM2S::SyncReadBuffer(void)
-{
+uint32_t MM2S::SyncReadBuffer(void){
 	uint32_t retval = XLNX_OK;
 
-	retval = CheckIsInitialised();
-
-	if (retval == XLNX_OK)
+	retval = m_pDeviceInterface->SyncBuffer(m_pReadBufferDescriptor, DeviceInterface::SyncDirection::TO_DEVICE);
+	
+	if (retval != XLNX_OK)
 	{
-		//If this is the first time we are performing a sync, we need to set up our buffer object...
-		SetupBuffersIfNecessary();
+		retval = MM2S_ERROR_IO_FAILED;
 	}
 
 
-	if (retval == XLNX_OK)
-	{
-		retval = SyncReadBufferInternal();
-	}
-
-	return retval;
 }
+
+
+// uint32_t MM2S::SyncReadBuffer(void)
+// {
+// 	uint32_t retval = XLNX_OK;
+
+// 	retval = CheckIsInitialised();
+
+// 	if (retval == XLNX_OK)
+// 	{
+// 		//If this is the first time we are performing a sync, we need to set up our buffer object...
+// 		SetupBuffersIfNecessary();
+// 	}
+
+
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = SyncReadBufferInternal();
+// 	}
+
+// 	return retval;
+// }
 
 
 
