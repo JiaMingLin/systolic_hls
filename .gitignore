@@ -40,3 +40,16 @@ hls_prj*
 .vitis*
 *.log
 .vscode
+_x/*
+_x*
+.ipcache/*
+.ipcache*
+.Xil/*
+.Xil*
+build_hw*
+build_hw_emu/*
+build_hw_emu*
+xo/*
+xo*
+*.json
+*.xo
