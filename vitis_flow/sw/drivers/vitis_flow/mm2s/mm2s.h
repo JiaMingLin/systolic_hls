@@ -34,11 +34,11 @@ public:
 
 public:
     // static const uint32_t RING_SIZE             = 65536; //elements;
-    static const uint32_t DATA_SIZE             = 65536;
+    static const uint32_t DATA_SIZE             = 1024;
     static const uint32_t READ_ELEMENT_SIZE     = 64; //bytes
     // static const uint32_t WRITE_ELEMENT_SIZE    = 32; //bytes
 
-    uint32_t SetupBuffersIfNecessary(void);
+    uint32_t SetupBuffers(void);
 
     void* GetReadBufferHostVirtualAddress(void);
     void* GetWriteBufferHostVirtualAddress(void);
@@ -108,8 +108,8 @@ public:
 //     uint32_t GetThrottleStats(ThrottleStats* pStats);
 
 protected:
-    static const uint32_t KERNEL_MEMORY_ARGUMENT_READ_BUFFER_INDEX = 3;
-    static const uint32_t KERNEL_MEMORY_ARGUMENT_WRITE_BUFFER_INDEX = 3;
+    static const uint32_t KERNEL_MEMORY_ARGUMENT_READ_BUFFER_INDEX = 0;
+    static const uint32_t KERNEL_MEMORY_ARGUMENT_WRITE_BUFFER_INDEX = 0;
 
     uint32_t SetupBufferObjects(void);
     uint32_t CleanupBufferObjects(void);
@@ -123,8 +123,8 @@ protected:
     // uint32_t SetHWReadBufferAddress(uint64_t address);
     // uint32_t SetHWWriteBufferAddress(uint64_t address);
 
-    uint32_t SyncReadBufferInternal(void);
-    uint32_t SetHWRingReadHeadIndex(uint32_t headIndex);
+    // uint32_t SyncReadBufferInternal(void);
+    // uint32_t SetHWRingReadHeadIndex(uint32_t headIndex);
 
 protected: //IO
     uint32_t ReadReg32(uint64_t offset, uint32_t* value);

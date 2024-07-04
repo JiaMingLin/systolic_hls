@@ -199,6 +199,8 @@ public:
 	*/
 	uint32_t GetCUIndex(const char* cuName, uint32_t* cuIndex);
 
+	uint32_t Wait(void);
+
 
 	/**
 	* @brief Read the contents of a single 32-bit register
@@ -622,8 +624,11 @@ public:
 	*/
 	uint32_t GetClocks(uint32_t frequencyMHz[MAX_SUPPORTED_CLOCKS], uint32_t* pNumClocks);
 
-
+	xclDeviceHandle GetDeviceHandle(void);
+	// xclDeviceInfo2 GetDeviceInfo2(void);
 /** @} */
+
+
 
 
 
@@ -769,6 +774,12 @@ private:
 	void IncrementMACAddress(uint8_t* pA, uint8_t* pB, uint8_t* pC, uint8_t* pD, uint8_t* pE, uint8_t* pF, uint32_t index);
 
 /** @} */
+
+private:
+	void wait_for_enter(const std::string &msg) {
+    	std::cout << msg << std::endl;
+    	std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+	}
 
 
 private:

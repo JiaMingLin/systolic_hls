@@ -1,12 +1,12 @@
 #include"top.h"
 
-extern "C" void addConstantTop(axiWordStream_t &input, axiWordStream_t &output){
+extern "C" void addConstantTop(axiDataStream_t &input, axiDataStream_t &output){
 
 #pragma HLS INTERFACE axis port=input
 #pragma HLS INTERFACE axis port=output
 #pragma HLS INTERFACE ap_ctrl_none port=return
 
-    static axiWordStream_t intermediateStream("intermediateStream");
+    static axiDataStream_t intermediateStream("intermediateStream");
 #pragma HLS STREAM variable=intermediateStream
 
 #pragma HLS DATAFLOW disable_start_propagation
@@ -16,48 +16,48 @@ extern "C" void addConstantTop(axiWordStream_t &input, axiWordStream_t &output){
 
 }
 
-void addOne(axiWordStream_t &input, axiWordStream_t &output){
+void addOne(axiDataStream_t &input, axiDataStream_t &output){
 #pragma HLS PIPELINE II=1 style=flp
 
-    static axiWord_t readWord;
+    axiDataBus bus;
     const ap_uint<DATA_WIDTH> const1 = 10;
     
     if (!input.empty()){
         // read from stream
-        readWord = input.read();
+        bus = input.read();
     
         // calculate
         for(int i = 0 ; i < NUM_WORD; i++){
-            readWord.range((i+1)*DATA_WIDTH-1, i*DATA_WIDTH) = readWord.range((i+1)*DATA_WIDTH-1, i*DATA_WIDTH) + const1;
+            bus.data.range((i+1)*DATA_WIDTH-1, i*DATA_WIDTH) = bus.data.range((i+1)*DATA_WIDTH-1, i*DATA_WIDTH) + const1;
         }
 
         // write to stream
-        output.write(readWord);
+        output.write(bus);
     }
     return;
 }
 
-void addTwo(axiWordStream_t &input, axiWordStream_t &output){
+void addTwo(axiDataStream_t &input, axiDataStream_t &output){
 #pragma HLS PIPELINE II=1 style=flp
 
-    static axiWord_t readWord;
+    axiDataBus bus;
     const ap_uint<DATA_WIDTH> const1 = 10;
     const ap_uint<DATA_WIDTH> const2 = 50;
 
     if (!input.empty()){
         // read from stream
-        readWord = input.read();
+        bus = input.read();
 
         // calculate
         LOOP_ADD_CONST_1: for(int i = 0 ; i < NUM_WORD; i+=2){
-            readWord.range((i+1)*DATA_WIDTH-1, i*DATA_WIDTH) = readWord.range((i+1)*DATA_WIDTH-1, i*DATA_WIDTH) + const1;
+            bus.data.range((i+1)*DATA_WIDTH-1, i*DATA_WIDTH) = bus.data.range((i+1)*DATA_WIDTH-1, i*DATA_WIDTH) + const1;
         }
         LOOP_ADD_CONST_2: for(int i = 1 ; i < NUM_WORD; i+=2){
-            readWord.range((i+1)*DATA_WIDTH-1, i*DATA_WIDTH) = readWord.range((i+1)*DATA_WIDTH-1, i*DATA_WIDTH) + const2;
+            bus.data.range((i+1)*DATA_WIDTH-1, i*DATA_WIDTH) = bus.data.range((i+1)*DATA_WIDTH-1, i*DATA_WIDTH) + const2;
         }
 
         // write to stream
-        output.write(readWord);
+        output.write(bus);
     }
     return;
 }

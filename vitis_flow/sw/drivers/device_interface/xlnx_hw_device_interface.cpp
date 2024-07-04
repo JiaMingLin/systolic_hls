@@ -409,7 +409,7 @@ uint32_t HWDeviceInterface::GetArgumentMemTopologyIndex(const char* cuName, uint
 
 	//STEP 1 - convert the CU Name into an IP LAYOUT index...
 	retval = GetCUIPLayoutIndex(cuName, &ipLayoutIndex);
-
+	// printf("GetCUIPLayoutIndex: %d\n", retval);
 
 
 
@@ -417,6 +417,7 @@ uint32_t HWDeviceInterface::GetArgumentMemTopologyIndex(const char* cuName, uint
 	{
 		//STEP 2 - get the connectivity (mem topology) index of the specified arg of the specified kernel...
 		retval = GetMemTopologyIndex(ipLayoutIndex, cuArgIndex, &memTopologyIndex);
+		// printf("GetMemTopologyIndex: %d\n", retval);
 	}
 
 
@@ -471,36 +472,29 @@ uint32_t HWDeviceInterface::TopologyIndexIsHostBank(uint32_t memTopologyIndex, b
 
 
 
-
-
-
-
-
-
-
-
-
-
 BufferDescriptor* HWDeviceInterface::AllocateBufferPair(uint32_t sizeInBytes, uint32_t bankInfo)
 {
 	HWDeviceBufferDescriptor* pHWBufferDescriptor = nullptr;
-	xclBufferHandle bufferHandle = NULLBO;
+	xclBufferHandle bufferHandle;
 
+	bufferHandle = (unsigned int)xclAllocBO(m_deviceHandle, (size_t)sizeInBytes, (xclBOKind)0, 0);
+	wait_for_enter("\nPress ENTER to continue...");
 
-	bufferHandle = xclAllocBO(m_deviceHandle, (size_t)sizeInBytes, (xclBOKind)0, bankInfo);
-
-
-	if (bufferHandle != NULLBO)
+	if (bufferHandle != XRT_NULL_BO)
 	{	
+		printf("before new HWDeviceBufferDescriptor()");
 		pHWBufferDescriptor = new HWDeviceBufferDescriptor();
-
+		printf("new HWDeviceBufferDescriptor()");
 		if (pHWBufferDescriptor != nullptr)
 		{
-
 			pHWBufferDescriptor->m_bufferHandle			= bufferHandle;
+			printf("pHWBufferDescriptor->m_bufferHandle");
 			pHWBufferDescriptor->m_deviceBufferAddress	= xclGetDeviceAddr(m_deviceHandle, pHWBufferDescriptor->m_bufferHandle);
+			printf("pHWBufferDescriptor->m_deviceBufferAddress");
 			pHWBufferDescriptor->m_sizeInBytes			= sizeInBytes;
+			printf("pHWBufferDescriptor->m_sizeInBytes");
 			pHWBufferDescriptor->m_bIsHostOnlyBuffer	= false;
+			printf("pHWBufferDescriptor->m_bIsHostOnlyBuffer");
 		}
 	}
 
@@ -711,15 +705,6 @@ uint32_t HWDeviceInterface::GetBitstreamSectionInfo(void* info, size_t* size, en
 }
 
 
-
-
-
-
-
-
-
-
-
 uint32_t HWDeviceInterface::GetCUAddress(const char* cuName, uint64_t* address)
 {
 	uint32_t retval = XLNX_OK;
@@ -737,6 +722,7 @@ uint32_t HWDeviceInterface::GetCUAddress(const char* cuName, uint64_t* address)
 
 		if (retval == XLNX_OK)
 		{
+			printf("ipDataElement.m_name: %s \n", (const char*)ipDataElement.m_name);
 			if (strncmp(cuName, (const char*)ipDataElement.m_name, MAX_CU_NAME_LENGTH) == 0)
 			{
 				*address = ipDataElement.m_base_address;
@@ -754,9 +740,6 @@ uint32_t HWDeviceInterface::GetCUAddress(const char* cuName, uint64_t* address)
 		retval = XLNX_DEV_INTERFACE_ERROR_CU_NAME_NOT_FOUND;
 	}
 
-
-
-
 	return retval;
 }
 
@@ -772,7 +755,7 @@ uint32_t HWDeviceInterface::GetCUIndex(const char* cuName, uint32_t* cuIndex)
 	//       It is an index into this INTERNAL LIST that is returned.
 
 	int rc = xclIPName2Index(m_deviceHandle, cuName);
-
+	printf("xclIPName2Index return: %d\n", rc);
 	if (rc >= 0)
 	{
 		*cuIndex = rc;
@@ -786,10 +769,11 @@ uint32_t HWDeviceInterface::GetCUIndex(const char* cuName, uint32_t* cuIndex)
 }
 
 
+uint32_t HWDeviceInterface::Wait(){
 
-
-
-
+	while (xclExecWait(m_deviceHandle, 1000)==0);
+	
+}
 
 
 uint32_t HWDeviceInterface::ReadCUReg32(uint32_t cuIndex, uint64_t offset, uint32_t* value)
@@ -1464,14 +1448,6 @@ uint32_t HWDeviceInterface::GetMemTopologyIndex(uint32_t ipLayoutIndex, uint32_t
 // }
 
 
-
-
-
-
-
-
-
-
 void HWDeviceInterface::ReadMACAddresses(void)
 {
 	uint32_t retval = 0;
@@ -1635,10 +1611,6 @@ bool HWDeviceInterface::ReadMACAddressOldMethod(uint32_t index)
 
 	return bOKToContinue;
 }
-
-
-
-
 
 
 bool HWDeviceInterface::ReadMACAddressNewMethod(uint32_t index)
@@ -1855,10 +1827,6 @@ bool HWDeviceInterface::ReadMACAddressNewMethod(uint32_t index)
 }
 
 
-
-
-
-
 void HWDeviceInterface::IncrementMACAddress(uint8_t* pA, uint8_t* pB, uint8_t* pC, uint8_t* pD, uint8_t* pE, uint8_t* pF, uint32_t index)
 {
 	uint64_t value;
@@ -1884,9 +1852,6 @@ void HWDeviceInterface::IncrementMACAddress(uint8_t* pA, uint8_t* pB, uint8_t* p
 	*pE = (value >> 8) & 0xFF;
 	*pF = (value >> 0) & 0xFF;	
 }
-
-
-
 
 
 uint32_t HWDeviceInterface::GetClocks(uint32_t frequencyMHz[MAX_SUPPORTED_CLOCKS], uint32_t* pNumClocks)
@@ -1924,7 +1889,12 @@ uint32_t HWDeviceInterface::GetClocks(uint32_t frequencyMHz[MAX_SUPPORTED_CLOCKS
 }
 
 
-
+xclDeviceHandle HWDeviceInterface::GetDeviceHandle(void){
+	return m_deviceHandle;
+}
+// xclDeviceInfo2 HWDeviceInterface::GetDeviceInfo2(void){
+// 	return m_deviceInfo;
+// }
 
 
 

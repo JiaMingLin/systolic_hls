@@ -7,8 +7,15 @@
 
 typedef ap_uint<DATA_WIDTH> data_t;
 typedef ap_uint<BUS_WIDTH> axiWord_t;
-typedef hls::stream<axiWord_t> axiWordStream_t;
 
-extern "C" void addConstantTop(axiWordStream_t &input, axiWordStream_t &output);
-void addOne(axiWordStream_t &input, axiWordStream_t &output);
-void addTwo(axiWordStream_t &input, axiWordStream_t &output);
+typedef struct axiDataBus
+{
+    axiWord_t data;
+    bool last;
+} axiDataBus;
+
+typedef hls::stream<axiDataBus> axiDataStream_t;
+
+extern "C" void addConstantTop(axiDataStream_t &input, axiDataStream_t &output);
+void addOne(axiDataStream_t &input, axiDataStream_t &output);
+void addTwo(axiDataStream_t &input, axiDataStream_t &output);

@@ -13,17 +13,22 @@ int main(){
     }
 
     // output is stream
-    axiWordStream_t output_stream;
+    axiDataStream_t output_stream;
 
     // hw call
-    mm2sTop(input, output_stream, length);
-
+    int status = 1;
+    mm2sTop(input, output_stream, length, status);
+    printf("status %d \n", status);
     // validate
     int err = 0;
     for(int i = 0; i < length; i++){
-        axiWord_t output_data = output_stream.read();
+        axiDataBus bus = output_stream.read();
+        axiWord_t output_data = bus.data;
+        bool last = bus.last;
         if(output_data != input[i]) err++;
+        if((i == (length-1)) && !last) err++;
     }
+    err+=status;
 
     return err;
 }

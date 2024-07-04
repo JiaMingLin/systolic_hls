@@ -8,5 +8,6 @@ create_clock -period 3.33 -name default
 set_top mm2sTop
 csim_design
 csynth_design
+cosim_design
 export_design -rtl verilog -format xo -output mm2s.xo
 exit

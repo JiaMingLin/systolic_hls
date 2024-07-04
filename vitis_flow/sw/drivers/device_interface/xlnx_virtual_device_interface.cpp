@@ -74,6 +74,13 @@ char* VirtualDeviceInterface::GetDeviceName(void)
 	return (char*)"Virtual Device";
 }
 
+xclDeviceHandle VirtualDeviceInterface::GetDeviceHandle(void){
+	return NULL;
+}
+// xclDeviceInfo2 VirtualDeviceInterface::GetDeviceInfo2(void){
+// 	return NULL;
+// }
+
 
 
 void VirtualDeviceInterface::GetPCIDBDF(uint16_t* pDomain, uint8_t* pBus, uint8_t* pDevice, uint8_t* pFunction)
@@ -579,6 +586,9 @@ uint32_t VirtualDeviceInterface::GetCUIndex(const char* cuName, uint32_t* cuInde
 }
 
 
+uint32_t VirtualDeviceInterface::Wait(void){
+
+}
 
 
 uint32_t VirtualDeviceInterface::InternalAddNewCUIfNecessary(const char* cuName)

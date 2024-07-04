@@ -75,6 +75,8 @@ public:
 	* @returns A NULL-terminated string of the device name.
 	*/
 	char* GetDeviceName(void);
+	xclDeviceHandle GetDeviceHandle(void);
+	// xclDeviceInfo2 GetDeviceInfo2(void);
 
 
 	/**
@@ -204,6 +206,7 @@ public:
 	*/
 	uint32_t GetCUIndex(const char* cuName, uint32_t* cuIndex);
 
+	uint32_t Wait(void);
 
 
 	/**

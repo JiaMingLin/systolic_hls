@@ -1,0 +1,469 @@
+// /*
+// #Copyright (C) 2023, Advanced Micro Devices, Inc. All rights reserved.
+// #SPDX-License-Identifier: X11
+// #*/
+
+// //#include "cmdlineparser.h"
+// // #include <iostream>
+// // #include <cstring>
+
+// // // XRT includes
+// // // #include "xrt/xrt_bo.h"
+// // #include <experimental/xrt_xclbin.h>
+// // // #include <experimental/xrt_ip.h>
+// // #include "experimental/xrt-next.h"
+// // // #include "xrt/xrt_device.h"
+// // // #include "xrt/xrt_kernel.h"
+// // // #include <ap_int.h>
+// // #include "xrt.h"
+
+// #include <iostream>
+// #include <stdio.h>
+// #include <stdlib.h>
+// #include <string.h>
+// #include <time.h>
+// #include <sys/types.h>
+// #include <sys/stat.h>
+// #include <fcntl.h>
+// #include <sys/mman.h>
+// #include <unistd.h>
+
+// #include <xrt.h>
+// #include <experimental/xrt-next.h>
+// #include <experimental/xrt_xclbin.h>
+// #include <ap_int.h>
+
+// #include "xlnx_device_manager.h"
+// #include "vitis_flow.h"
+
+// #define DATA_SIZE 256
+// #define BUS_WIDTH 512
+// #define DATA_WIDTH 32
+// // #define AAT_INTERFACE
+
+// using namespace XLNX;
+
+// DeviceManager g_deviceManager;
+// VitisFlow vitis_flow;
+
+// void wait_for_enter(const std::string &msg) {
+//     std::cout << msg << std::endl;
+//     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+// }
+
+// DeviceInterface* ChooseDeviceInterface(int device_idx){
+// 	int numDevices = g_deviceManager.EnumerateDevices();
+// 	DeviceInterface* pDeviceInterface;
+
+// 	if(numDevices >= device_idx){
+// 		pDeviceInterface = g_deviceManager.CreateHWDeviceInterface(device_idx);
+// 	}
+// 	else
+// 	{
+// 		printf("[ERROR] Specified -d device index = %d\n", device_idx);
+// 		printf("        Found %d HW device(s)\n", numDevices);
+// 		exit(0);
+// 	}
+
+// 	printf("Using device: %s...\n\n", pDeviceInterface->GetDeviceName());
+// 	return pDeviceInterface;
+// }
+
+// void cpuCompute(ap_uint<BUS_WIDTH> *data_in, ap_uint<BUS_WIDTH> *data_out){
+    
+//     const int add1_const = 10;
+//     const int add2_const = 50;
+//     for(int i = 0; i < DATA_SIZE; i++){
+        
+//         ap_uint<BUS_WIDTH> data = data_in[i];
+
+//         // ADD constant
+//         // ADD 1
+//         for(int j = 0; j < BUS_WIDTH/DATA_WIDTH; j++){
+//             data.range((j+1) * DATA_WIDTH - 1, j * DATA_WIDTH) = data.range((j+1) * DATA_WIDTH - 1, j * DATA_WIDTH) + add1_const;
+//         }
+
+//         // ADD 2
+//         for(int j = 0; j < BUS_WIDTH/DATA_WIDTH; j+=2){
+//             data.range((j+1) * DATA_WIDTH - 1, j * DATA_WIDTH) = data.range((j+1) * DATA_WIDTH - 1, j * DATA_WIDTH) + add1_const;
+//         }
+//         for(int j = 1; j < BUS_WIDTH/DATA_WIDTH; j+=2){
+//             data.range((j+1) * DATA_WIDTH - 1, j * DATA_WIDTH) = data.range((j+1) * DATA_WIDTH - 1, j * DATA_WIDTH) + add2_const;
+//         }
+
+//         // MUL Constant
+//         // MUL 1
+//         for(int j = 0; j < BUS_WIDTH/DATA_WIDTH; j++){
+//             data.range((j+1) * DATA_WIDTH - 1, j * DATA_WIDTH) = data.range((j+1) * DATA_WIDTH - 1, j * DATA_WIDTH) * add1_const;
+//         }
+
+//         // MUL 2
+//         for(int j = 0; j < BUS_WIDTH/DATA_WIDTH; j+=2){
+//             data.range((j+1) * DATA_WIDTH - 1, j * DATA_WIDTH) = data.range((j+1) * DATA_WIDTH - 1, j * DATA_WIDTH) * add1_const;
+//         }
+//         for(int j = 1; j < BUS_WIDTH/DATA_WIDTH; j+=2){
+//             data.range((j+1) * DATA_WIDTH - 1, j * DATA_WIDTH) = data.range((j+1) * DATA_WIDTH - 1, j * DATA_WIDTH) * add2_const;
+//         }
+
+//         data_out[i] = data;
+//     }
+// }
+
+// void downloadBitStream(DeviceInterface* pDeviceInterface){
+//     printf("Downloading XCLBIN file: vitis_flow.xclbin\n");
+//     int retval = pDeviceInterface->DownloadBitstream("vitis_flow.xclbin");
+//     switch (retval)
+// 		{
+// 			case(XLNX_OK):
+// 			{
+// 				printf("Download SUCCESSFUL\n");
+// 				break;
+// 			}
+
+// 			case(XLNX_DEV_INTERFACE_ERROR_FAILED_TO_OPEN_FILE):
+// 			{
+// 				printf("[ERROR] Download FAILED - Failed to open file 'vitis_flow.xclbin'\n");
+// 				break;
+// 			}
+
+// 			case(XLNX_DEV_INTERFACE_ERROR_FAILED_TO_LOCK_DEVICE):
+// 			{
+// 				printf("[ERROR] Download FAILED - Failed to lock device\n");
+// 				break;
+// 			}
+
+// 			case(XLNX_DEV_INTERFACE_ERROR_FAILED_TO_DOWNLOAD_BITSTREAM):
+// 			{
+// 				printf("[ERROR] Download FAILED - Failed to download bitstream\n");
+// 				break;
+// 			}
+
+// 			default:
+// 			{
+// 				printf("[ERROR] Download FAILED - Unknown reason (%d)\n", retval);
+// 				break;
+// 			}
+
+// 		}
+
+// }
+// #ifdef AAT_INTERFACE
+// int main(int argc, char** argv) {
+	
+// 	DeviceInterface* pDeviceInterface;
+
+//     ap_uint<BUS_WIDTH> *data_in, *data_out, *cpu_out;
+//     cpu_out = (ap_uint<BUS_WIDTH> *)malloc(BUS_WIDTH * DATA_SIZE);
+//     if(cpu_out == NULL){
+//         printf("[ERROR] CPU output buffer allocate error");
+//         return 1;
+//     }
+
+//     // choose device and initialize device
+// 	pDeviceInterface = ChooseDeviceInterface(0);
+
+//     downloadBitStream(pDeviceInterface);
+
+//     // initialize the main modules
+//     // get CU address and memory topologies
+//     uint32_t init_result = vitis_flow.Initialise(pDeviceInterface);
+//     printf("Vitis initialization result: %d\n", init_result);
+
+//     // allocate and map data buffer 
+//     printf("Allocate and map data buffer...\n");
+//     vitis_flow.mm2s.SetupBuffers();
+//     vitis_flow.s2mm.SetupBuffers();
+
+//     // virtual address of the HOST BUFFERS for host to WRITE the inputs
+//     data_in = (ap_uint<BUS_WIDTH>*)vitis_flow.mm2s.GetWriteBufferHostVirtualAddress();
+//     // virtual address of the HOST BUFFERS for host to READ the results
+//     data_out = (ap_uint<BUS_WIDTH>*)vitis_flow.s2mm.GetReadBufferHostVirtualAddress();
+    
+//     // fill data
+//     printf("Filling data...");
+//     for(int i = 0; i < DATA_SIZE; i++){
+//         ap_uint<BUS_WIDTH> bus = 0;
+//         for(int j = 0; j < BUS_WIDTH/DATA_WIDTH; j++){
+//             bus.range((j+1)*BUS_WIDTH-1, j) = rand();
+//         }
+//         data_in[i] = bus;
+//     }
+
+//     printf("[INFO] CPU compute start...");
+//     // software compute
+//     cpuCompute(data_in, cpu_out);
+//     printf("[INFO] CPU compute done!");
+
+//     // hardware compute
+//     // (1) sync data, (2) execute
+//     // Note: the stream to memory map module is not freely run, must be manually started running from the host.
+//     vitis_flow.mm2s.SyncWriteBuffer();
+//     vitis_flow.mm2s.StartHWKernel();
+//     vitis_flow.s2mm.StartHWKernel();
+
+//     // wait for complete
+//     pDeviceInterface->Wait();
+
+//     // sync output data
+//     vitis_flow.s2mm.SyncReadBuffer();
+
+//     // comparison hardware compute with software compute
+//     int err = 0;
+//     for(int i = 0; i < DATA_SIZE; i++){
+//         ap_uint<BUS_WIDTH> hw_bus = data_out[i];
+//         ap_uint<BUS_WIDTH> sw_bus = cpu_out[i];
+//         for(int j = 0; j < BUS_WIDTH/DATA_WIDTH; j++){
+//             if(hw_bus.range((j+1) * DATA_WIDTH, j * DATA_WIDTH) != sw_bus.range((j+1) * DATA_WIDTH, j * DATA_WIDTH)){
+//                 err++;
+//             }
+//         }
+//     }
+
+//     printf("The error count = %d", err);
+//     if(err > 0){
+//         return err;
+//     }
+//     std::cout << "TEST PASSED\n";
+//     return 0;
+// }
+
+// #else
+
+// #define LOG printf
+// #define XCLBIN "vitis_flow.xclbin"
+// #define MM2S_BASE_ADDR (0x01400000)
+// #define S2MM_BASE_ADDR (0x01410000)
+
+
+// DeviceInterface* pDeviceInterface;
+// uint32_t WriteReg32(uint64_t cuAddress, uint64_t offset, uint32_t value)
+// {
+// 	uint32_t retval = (0x00000000);
+// 	uint64_t address;
+// 	address = cuAddress + offset;
+// 	retval = pDeviceInterface->WriteReg32(address, value);
+// 	if (retval != (0x00000000))
+// 	{
+// 		retval = (0x00000002);
+// 	}
+// 	return retval;
+// }
+
+// uint32_t ReadReg32(uint64_t cuAddress, uint64_t offset, uint32_t* value)
+// {
+// 	uint32_t retval = XLNX_OK;
+// 	uint64_t address;
+// 	address = cuAddress + offset;
+// 	retval = pDeviceInterface->ReadReg32(address, value);
+// 	if (retval != XLNX_OK)
+// 	{
+// 		retval = MM2S_ERROR_IO_FAILED;
+// 	}
+// 	return retval;
+// }
+
+
+// int main(int argc, char** argv){
+//     xclDeviceHandle dev_handle;
+//     struct stat st;
+//     size_t xclbin_size;
+//     struct axlf *xclbin;
+//     uuid_t xclbin_uuid;
+//     int ret;
+//     uint64_t mm2sAddress=0, s2mmAddress=0;
+//     ap_uint<BUS_WIDTH> *data_in, *data_out, *cpu_out;
+//     cpu_out = (ap_uint<BUS_WIDTH> *)malloc(BUS_WIDTH * DATA_SIZE);
+//     if(cpu_out == NULL){
+//         printf("[ERROR] CPU output buffer allocate error");
+//         return 1;
+//     }
+//     struct xclBOProperties bo_prop;
+
+    
+// 	// choose device and initialize device
+// 	pDeviceInterface = ChooseDeviceInterface(0);
+
+// 	dev_handle = pDeviceInterface->GetDeviceHandle();
+//     downloadBitStream(pDeviceInterface);
+
+//     // get CU address
+//     pDeviceInterface->GetCUAddress("mm2sTop:mm2s", &mm2sAddress);
+//     pDeviceInterface->GetCUAddress("s2mmTop:s2mm", &s2mmAddress);
+//     LOG("mm2sAddress: 0x%08x\n", mm2sAddress);
+//     LOG("s2mmAddress: 0x%08x\n", s2mmAddress);
+
+//     wait_for_enter("\n\nPressing Enter to Procee...");
+//     const uint32_t AP_START		= (1 << 0);
+// 	const uint32_t AUTO_RESTART	= (1 << 7);
+//     uint32_t value = AP_START | AUTO_RESTART;
+//     uint32_t mask = value;
+//     // LOG("START EXECUTE!\n");
+//     LOG("Write value %d to register of mm2s\n", value);
+//     uint32_t retval = WriteReg32(MM2S_BASE_ADDR, 0x00000000, value);
+//     LOG("Write value to mm2s result: %d\n", retval);
+//     retval = ReadReg32(MM2S_BASE_ADDR, 0x00000000, &value);
+//     LOG("Read value %d from register of mm2s\n", value);
+
+//     // xclWrite(dev_handle, XCL_ADDR_KERNEL_CTRL, MM2S_BASE_ADDR + 0x00000000, &value, sizeof(uint32_t));
+//     // xclWrite(dev_handle, XCL_ADDR_KERNEL_CTRL, S2MM_BASE_ADDR + 0x00000000, &value, sizeof(uint32_t));
+
+//     return 0;
+// }
+// #endif
+
+
+
+// 	/*
+//     LOG("xclOpen\n");
+//     dev_handle = xclOpen(0, NULL, xclVerbosityLevel::XCL_QUIET);
+//     if (dev_handle == XRT_NULL_HANDLE) {
+// 		perror("xclOpen");
+// 		return 1;
+// 	}
+
+//     //reading xclbin 
+// 	int fd = open(XCLBIN, O_RDONLY);
+// 	if (fd < 0) {
+// 		perror("open xclbin");
+// 		return 1;
+// 	}
+// 	if (fstat(fd, &st) == -1) {
+// 		perror("stat xclbin");
+// 		return 1;
+// 	}
+// 	xclbin_size = st.st_size;
+
+// 	xclbin = (struct axlf *)mmap(NULL, xclbin_size, PROT_READ,
+// 			MAP_PRIVATE, fd, 0);
+// 	if (xclbin == NULL) {
+// 		perror("mmap xclbin");
+// 		return 1;
+// 	}
+// 	memcpy(xclbin_uuid, xclbin->m_header.uuid, sizeof(uuid_t));
+
+// 	LOG("xclLoadXclBin\n");
+// 	ret = xclLoadXclBin(dev_handle, (const struct axlf *)xclbin);
+// 	if (ret != 0) {
+// 		perror("xclLoadXclBin");
+// 		return 1;
+// 	}
+
+// 	if (munmap(xclbin, xclbin_size) != 0) {
+// 		perror("munmap");
+// 		return 1;
+// 	}
+// 	close(fd);
+// 	*/
+
+
+
+
+// /*
+
+//     LOG("xclAllocBO mm2s\n");
+//     xclBufferHandle mm2s_buff_handler = NULLBO;
+// 	mm2s_buff_handler = xclAllocBO(dev_handle, 64*DATA_SIZE, 0, 0);
+// 	printf("mm2s_buff_handler = %d\n", mm2s_buff_handler);
+// 	if (mm2s_buff_handler == NULLBO) {
+// 		perror("xclAllocBO mm2s");
+// 		return 1;
+// 	}
+//     LOG("xclAllocBO s2mm\n");
+//     xclBufferHandle s2mm_buff_handler = NULLBO;
+// 	s2mm_buff_handler = xclAllocBO(dev_handle, 64*DATA_SIZE, 0, 1);
+// 	printf("s2mm_buff_handler = %d\n", s2mm_buff_handler);
+// 	if (s2mm_buff_handler == NULLBO) {
+// 		perror("xclAllocBO s2mm");
+// 		return 1;
+// 	}
+
+//     LOG("xclGetBOProperties mm2s\n");
+// 	if (xclGetBOProperties(dev_handle, mm2s_buff_handler, &bo_prop) != 0) {
+// 		perror("xclGetBOProperties mm2s");
+// 		return 1;
+// 	}
+// 	uint64_t mm2s_addr = bo_prop.paddr;
+//     LOG("xclGetBOProperties s2mm\n");
+// 	if (xclGetBOProperties(dev_handle, s2mm_buff_handler, &bo_prop) != 0) {
+// 		perror("xclGetBOProperties s2mm");
+// 		return 1;
+// 	}
+// 	uint64_t s2mm_addr = bo_prop.paddr;
+
+//     LOG("xclMapBO mm2s\n");
+// 	data_in = (ap_uint<BUS_WIDTH>*)xclMapBO(dev_handle, mm2s_buff_handler, true);
+// 	if (data_in == NULL) {
+// 		perror("xclMapBO mm2s");
+// 		return 1;
+// 	}
+//     LOG("xclMapBO s2mm\n");
+// 	data_out = (ap_uint<BUS_WIDTH>*)xclMapBO(dev_handle, s2mm_buff_handler, true);
+// 	if (data_out == NULL) {
+// 		perror("xclMapBO s2mm");
+// 		return 1;
+// 	}
+//     // fill data
+//     LOG("Filling data...\n");
+//     for(int i = 0; i < DATA_SIZE; i++){
+//         ap_uint<BUS_WIDTH> bus = 0;
+//         for(int j = 0; j < BUS_WIDTH/DATA_WIDTH; j++){
+//             bus.range((j+1)*DATA_WIDTH-1, j*DATA_WIDTH) = rand();
+//         }
+//         data_in[i] = bus;
+//     }
+    
+//     // software compute
+//     LOG("[INFO] CPU compute start...\n");
+//     cpuCompute(data_in, cpu_out);
+//     LOG("[INFO] CPU compute done!\n");
+
+//     LOG("xclSyncBO mm2s\n");
+// 	if (xclSyncBO(dev_handle, mm2s_buff_handler, XCL_BO_SYNC_BO_TO_DEVICE, 64 * DATA_SIZE, 0) != 0) {
+// 		perror("xclSyncBO mm2s");
+// 		return 1;
+// 	}
+// */
+
+
+// /*
+// ret = xclExecWait(dev_handle, 5000);
+//     if (ret < 0) {
+// 		perror("xclExecWait");
+// 		return 1;
+// 	}
+
+//     LOG("xclSyncBO s2mm\n");
+// 	if (xclSyncBO(dev_handle, s2mm_buff_handler, XCL_BO_SYNC_BO_FROM_DEVICE, 64*DATA_SIZE, 0) != 0) {
+// 		perror("xclSyncBO s2mm");
+// 		return 1;
+// 	}
+
+//     int i;
+//     for ( i = 0; i < DATA_SIZE; i++) {
+// 		if (cpu_out[i] != data_out[i]) {
+// 			printf("data different !! (%d)\n", i);
+// 			break;
+// 		}
+// 	}
+//     if (i == DATA_SIZE) {
+// 		printf("### OK ###\n");
+// 	}
+
+//     // Freeing resouces to show examples. 
+// 	LOG("xclUnmaoBO mm2s\n");
+// 	xclUnmapBO(dev_handle, mm2s_buff_handler, data_in);
+
+// 	LOG("xclUnmaoBO s2mm\n");
+// 	xclUnmapBO(dev_handle, s2mm_buff_handler, data_out);
+
+// 	LOG("xclFreeBO mm2s\n");
+// 	xclFreeBO(dev_handle, mm2s_buff_handler);
+
+// 	LOG("xclFreeBO s2mm\n");
+// 	xclFreeBO(dev_handle, s2mm_buff_handler);
+
+// 	LOG("xclClose\n");
+// 	xclClose(dev_handle);
+
+    
+// */

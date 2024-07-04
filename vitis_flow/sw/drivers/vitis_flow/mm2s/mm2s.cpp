@@ -107,7 +107,7 @@ uint32_t MM2S::Initialise(DeviceInterface* pDeviceInterface, const char* cuName)
 		retval = m_pDeviceInterface->GetArgumentMemTopologyIndex(cuName, KERNEL_MEMORY_ARGUMENT_READ_BUFFER_INDEX, &m_readBufferMemTopologyIndex);
 		if (retval != XLNX_OK)
 		{
-			retval = MM2S_ERROR_CU_NAME_NOT_FOUND;
+			retval = MM2S_ERROR_READ_ARGUMENT_MEM_TOPOLOGY_INDEX_NOT_FOUND;
 		}
 	}
 
@@ -137,7 +137,7 @@ uint32_t MM2S::Initialise(DeviceInterface* pDeviceInterface, const char* cuName)
 		retval = m_pDeviceInterface->GetArgumentMemTopologyIndex(cuName, KERNEL_MEMORY_ARGUMENT_WRITE_BUFFER_INDEX, &m_writeBufferMemTopologyIndex);
 		if(retval != XLNX_OK)
 		{
-			retval = MM2S_ERROR_CU_NAME_NOT_FOUND;
+			retval = MM2S_ERROR_WRITE_ARGUMENT_MEM_TOPOLOGY_INDEX_NOT_FOUND;
 		}
 	}
 
@@ -166,6 +166,7 @@ uint32_t MM2S::Initialise(DeviceInterface* pDeviceInterface, const char* cuName)
 	//		 But to aid multi-process watch commands being run, we will
 	//		 defer setting up the buffer until the first time the Sync method is called.
 
+	SetupBufferObjects();
 
 
 
@@ -354,7 +355,7 @@ uint32_t MM2S::StartHWKernel(void)
 
 	if (retval == XLNX_OK)
 	{
-		retval = SetupBuffersIfNecessary();
+		retval = SetupBuffers();
 	}
 
 
@@ -657,7 +658,6 @@ uint32_t MM2S::SetupBufferObjectsFromCardRAM(void)
 	// The HW kernel is connected to CARD RAM.  This means we need to allocate a BUFFER PAIR (i.e. HOST + CARD)
 	std::cout << (int)m_readBufferMemTopologyIndex << "\n";
 	m_pReadBufferDescriptor = m_pDeviceInterface->AllocateBufferPair(DATA_SIZE * READ_ELEMENT_SIZE, m_readBufferMemTopologyIndex);
-
 	if (m_pReadBufferDescriptor == nullptr)
 	{
 		retval = MM2S_ERROR_FAILED_TO_ALLOCATE_BUFFER_OBJECT;
@@ -692,24 +692,25 @@ uint32_t MM2S::SetupBufferObjectsFromCardRAM(void)
 
 
 
-	//Retrieve the virtual address of the HOST BUFFERS
+	//Retrieve the virtual address of the HOST BUFFERS for host to read the results
+	// if (retval == XLNX_OK)
+	// {
+	// 	retval = m_pDeviceInterface->MapBufferToUserspace(m_pReadBufferDescriptor, DeviceInterface::BufferMapType::READ_ONLY, &m_readBufferHostVirtualAddress);
+	// 	if (retval != XLNX_OK)
+	// 	{
+	// 		retval = MM2S_ERROR_FAILED_TO_MAP_BUFFER_OBJECT;
+	// 	}
+	// }
+
+	//Retrieve the virtual address of the HOST BUFFERS for host to write the inputs
 	if (retval == XLNX_OK)
 	{
-		retval = m_pDeviceInterface->MapBufferToUserspace(m_pReadBufferDescriptor, DeviceInterface::BufferMapType::READ_WRITE, &m_readBufferHostVirtualAddress);
+		retval = m_pDeviceInterface->MapBufferToUserspace(m_pWriteBufferDescriptor, DeviceInterface::BufferMapType::READ_WRITE, &m_writeBufferHostVirtualAddress);
 		if (retval != XLNX_OK)
-		{    
+		{
 			retval = MM2S_ERROR_FAILED_TO_MAP_BUFFER_OBJECT;
 		}
 	}
-
-	// if (retval == XLNX_OK)
-	// {
-	// 	retval = m_pDeviceInterface->MapBufferToUserspace(m_pWriteBufferDescriptor, DeviceInterface::BufferMapType::READ_WRITE, &m_writeBufferHostVirtualAddress);
-	// 	if (retval != XLNX_OK)
-	// 	{
-	// 		retval = mm2s_ERROR_FAILED_TO_MAP_BUFFER_OBJECT;
-	// 	}
-	// }
 
 
 
@@ -853,7 +854,7 @@ uint32_t MM2S::CleanupBufferObjectsFromCardRAM(void)
 
 
 
-uint32_t MM2S::SetupBuffersIfNecessary(void)
+uint32_t MM2S::SetupBuffers(void)
 {
 	uint32_t retval = XLNX_OK;
 
@@ -883,7 +884,7 @@ uint64_t MM2S::GetReadBufferHWAddress(void)
 uint32_t MM2S::SyncReadBuffer(void){
 	uint32_t retval = XLNX_OK;
 
-	retval = m_pDeviceInterface->SyncBuffer(m_pReadBufferDescriptor, DeviceInterface::SyncDirection::TO_DEVICE);
+	retval = m_pDeviceInterface->SyncBuffer(m_pReadBufferDescriptor, DeviceInterface::SyncDirection::FROM_DEVICE);
 	
 	if (retval != XLNX_OK)
 	{
@@ -918,268 +919,268 @@ uint32_t MM2S::SyncReadBuffer(void){
 
 
 
-uint32_t MM2S::SyncReadBufferInternal(void)
-{
-	uint32_t retval = XLNX_OK;
-	uint32_t currentHeadIndex;
-	uint32_t currentTailIndex;
-	uint32_t maxElementsPerSync = m_maxDMAChunkSize;
-	uint32_t totalNewElements;
-	uint32_t totalTransferredElements;
-	uint32_t transferSizeInElements;
-	uint32_t offset;
-	uint32_t size;
-
-
-	if (retval == XLNX_OK)
-	{
-		retval = GetHWRingReadBufferIndexes(&currentHeadIndex, &currentTailIndex);
-	}
-
-
-	if (retval == XLNX_OK)
-	{
-		//We only need to manually sync the buffer if we are using CARD RAM
-		//If we are using the HOST BANK (i.e. the slave bridge), data is automatically sync'd
-		if (m_bUsingHostBank == false)
-		{
-
-			if (currentTailIndex > m_lastReadTailIndex)
-			{
-				totalNewElements = currentTailIndex - m_lastReadTailIndex;
-				totalTransferredElements = 0;
-
-				while (totalTransferredElements < totalNewElements)
-				{
-					if (maxElementsPerSync == 0)
-					{
-						//transfer ALL new elements in one go...
-						transferSizeInElements = totalNewElements;
-					}
-					else
-					{
-						//We want to limit each transfer to a maximum size...
-						transferSizeInElements = totalNewElements - totalTransferredElements;
-
-						if (transferSizeInElements > maxElementsPerSync)
-						{
-							transferSizeInElements = maxElementsPerSync;
-						}
-					}
-
-
-
-					offset = (m_lastReadTailIndex + totalTransferredElements) * READ_ELEMENT_SIZE;
-					size = transferSizeInElements * READ_ELEMENT_SIZE;
-
-					DMAStatsLogTransfer(&m_dmaC2HStats, size);
-
-					retval = m_pDeviceInterface->SyncBuffer(m_pReadBufferDescriptor, DeviceInterface::SyncDirection::FROM_DEVICE, size, offset);
-
-					if (retval == XLNX_OK)
-					{
-						totalTransferredElements += transferSizeInElements;
-					}
-					else
-					{
-						retval = mm2s_ERROR_FAILED_TO_SYNC_BUFFER_OBJECT;
-						break; //out of loop
-					}
-				}
-
-
-			}
-			else if (currentTailIndex < m_lastReadTailIndex)
-			{
-				//we will assume we have wrapped around...
-				//this means we have to do two syncs...one of the latter part of the buffer and one of the early part of the buffer...
-
-
-				totalNewElements = RING_SIZE - m_lastReadTailIndex;
-				totalTransferredElements = 0;
-
-				while (totalTransferredElements < totalNewElements)
-				{
-					if (maxElementsPerSync == 0)
-					{
-						//transfer ALL new elements in one go...
-						transferSizeInElements = totalNewElements;
-					}
-					else
-					{
-						//We want to limit each transfer to a maximum size...
-						transferSizeInElements = totalNewElements - totalTransferredElements;
-
-						if (transferSizeInElements > maxElementsPerSync)
-						{
-							transferSizeInElements = maxElementsPerSync;
-						}
-					}
-
-
-
-					DMAStatsLogWrapAround(&m_dmaC2HStats);
-
-					offset = (m_lastReadTailIndex + totalTransferredElements) * READ_ELEMENT_SIZE;
-					size = transferSizeInElements * READ_ELEMENT_SIZE;
+// uint32_t MM2S::SyncReadBufferInternal(void)
+// {
+// 	uint32_t retval = XLNX_OK;
+// 	uint32_t currentHeadIndex;
+// 	uint32_t currentTailIndex;
+// 	uint32_t maxElementsPerSync = m_maxDMAChunkSize;
+// 	uint32_t totalNewElements;
+// 	uint32_t totalTransferredElements;
+// 	uint32_t transferSizeInElements;
+// 	uint32_t offset;
+// 	uint32_t size;
+
+
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = GetHWRingReadBufferIndexes(&currentHeadIndex, &currentTailIndex);
+// 	}
+
+
+// 	if (retval == XLNX_OK)
+// 	{
+// 		//We only need to manually sync the buffer if we are using CARD RAM
+// 		//If we are using the HOST BANK (i.e. the slave bridge), data is automatically sync'd
+// 		if (m_bUsingHostBank == false)
+// 		{
+
+// 			if (currentTailIndex > m_lastReadTailIndex)
+// 			{
+// 				totalNewElements = currentTailIndex - m_lastReadTailIndex;
+// 				totalTransferredElements = 0;
+
+// 				while (totalTransferredElements < totalNewElements)
+// 				{
+// 					if (maxElementsPerSync == 0)
+// 					{
+// 						//transfer ALL new elements in one go...
+// 						transferSizeInElements = totalNewElements;
+// 					}
+// 					else
+// 					{
+// 						//We want to limit each transfer to a maximum size...
+// 						transferSizeInElements = totalNewElements - totalTransferredElements;
+
+// 						if (transferSizeInElements > maxElementsPerSync)
+// 						{
+// 							transferSizeInElements = maxElementsPerSync;
+// 						}
+// 					}
+
+
+
+// 					offset = (m_lastReadTailIndex + totalTransferredElements) * READ_ELEMENT_SIZE;
+// 					size = transferSizeInElements * READ_ELEMENT_SIZE;
+
+// 					DMAStatsLogTransfer(&m_dmaC2HStats, size);
+
+// 					retval = m_pDeviceInterface->SyncBuffer(m_pReadBufferDescriptor, DeviceInterface::SyncDirection::FROM_DEVICE, size, offset);
+
+// 					if (retval == XLNX_OK)
+// 					{
+// 						totalTransferredElements += transferSizeInElements;
+// 					}
+// 					else
+// 					{
+// 						retval = mm2s_ERROR_FAILED_TO_SYNC_BUFFER_OBJECT;
+// 						break; //out of loop
+// 					}
+// 				}
+
+
+// 			}
+// 			else if (currentTailIndex < m_lastReadTailIndex)
+// 			{
+// 				//we will assume we have wrapped around...
+// 				//this means we have to do two syncs...one of the latter part of the buffer and one of the early part of the buffer...
+
+
+// 				totalNewElements = RING_SIZE - m_lastReadTailIndex;
+// 				totalTransferredElements = 0;
+
+// 				while (totalTransferredElements < totalNewElements)
+// 				{
+// 					if (maxElementsPerSync == 0)
+// 					{
+// 						//transfer ALL new elements in one go...
+// 						transferSizeInElements = totalNewElements;
+// 					}
+// 					else
+// 					{
+// 						//We want to limit each transfer to a maximum size...
+// 						transferSizeInElements = totalNewElements - totalTransferredElements;
+
+// 						if (transferSizeInElements > maxElementsPerSync)
+// 						{
+// 							transferSizeInElements = maxElementsPerSync;
+// 						}
+// 					}
+
+
+
+// 					DMAStatsLogWrapAround(&m_dmaC2HStats);
+
+// 					offset = (m_lastReadTailIndex + totalTransferredElements) * READ_ELEMENT_SIZE;
+// 					size = transferSizeInElements * READ_ELEMENT_SIZE;
 
-					DMAStatsLogTransfer(&m_dmaC2HStats, size);
+// 					DMAStatsLogTransfer(&m_dmaC2HStats, size);
 
-					retval = m_pDeviceInterface->SyncBuffer(m_pReadBufferDescriptor, DeviceInterface::SyncDirection::FROM_DEVICE, size, offset);
-					if (retval == XLNX_OK)
-					{
-						totalTransferredElements += transferSizeInElements;
-					}
-					else
-					{
-						retval = mm2s_ERROR_FAILED_TO_SYNC_BUFFER_OBJECT;
-						break; //out of loop
-					}
-				}
+// 					retval = m_pDeviceInterface->SyncBuffer(m_pReadBufferDescriptor, DeviceInterface::SyncDirection::FROM_DEVICE, size, offset);
+// 					if (retval == XLNX_OK)
+// 					{
+// 						totalTransferredElements += transferSizeInElements;
+// 					}
+// 					else
+// 					{
+// 						retval = mm2s_ERROR_FAILED_TO_SYNC_BUFFER_OBJECT;
+// 						break; //out of loop
+// 					}
+// 				}
 
 
 
 
 
-				//
-				//Now for the early part of the buffer....
-				//
+// 				//
+// 				//Now for the early part of the buffer....
+// 				//
 
-				if (retval == XLNX_OK)
-				{
+// 				if (retval == XLNX_OK)
+// 				{
 
-					totalNewElements = currentTailIndex; //i.e. from index 0 to currentTailIndex
-					totalTransferredElements = 0;
+// 					totalNewElements = currentTailIndex; //i.e. from index 0 to currentTailIndex
+// 					totalTransferredElements = 0;
 
-					while (totalTransferredElements < totalNewElements)
-					{
-						if (maxElementsPerSync == 0)
-						{
-							//transfer ALL new elements in one go...
-							transferSizeInElements = totalNewElements;
-						}
-						else
-						{
-							//We want to limit each transfer to a maximum size...
-							transferSizeInElements = totalNewElements - totalTransferredElements;
+// 					while (totalTransferredElements < totalNewElements)
+// 					{
+// 						if (maxElementsPerSync == 0)
+// 						{
+// 							//transfer ALL new elements in one go...
+// 							transferSizeInElements = totalNewElements;
+// 						}
+// 						else
+// 						{
+// 							//We want to limit each transfer to a maximum size...
+// 							transferSizeInElements = totalNewElements - totalTransferredElements;
 
-							if (transferSizeInElements > maxElementsPerSync)
-							{
-								transferSizeInElements = maxElementsPerSync;
-							}
-						}
+// 							if (transferSizeInElements > maxElementsPerSync)
+// 							{
+// 								transferSizeInElements = maxElementsPerSync;
+// 							}
+// 						}
 
-						offset = 0 + totalTransferredElements;
-						size = transferSizeInElements * READ_ELEMENT_SIZE;
+// 						offset = 0 + totalTransferredElements;
+// 						size = transferSizeInElements * READ_ELEMENT_SIZE;
 
-						DMAStatsLogTransfer(&m_dmaC2HStats, size);
+// 						DMAStatsLogTransfer(&m_dmaC2HStats, size);
 
-						if (size > 0)
-						{
-							retval = m_pDeviceInterface->SyncBuffer(m_pReadBufferDescriptor, DeviceInterface::SyncDirection::FROM_DEVICE, size, offset);
-							if (retval == XLNX_OK)
-							{
-								totalTransferredElements += transferSizeInElements;
-							}
-							else
-							{
-								retval = mm2s_ERROR_FAILED_TO_SYNC_BUFFER_OBJECT;
-								break; //out of loop
-							}
-						}
-					}
-				}
-			}
-		}
+// 						if (size > 0)
+// 						{
+// 							retval = m_pDeviceInterface->SyncBuffer(m_pReadBufferDescriptor, DeviceInterface::SyncDirection::FROM_DEVICE, size, offset);
+// 							if (retval == XLNX_OK)
+// 							{
+// 								totalTransferredElements += transferSizeInElements;
+// 							}
+// 							else
+// 							{
+// 								retval = mm2s_ERROR_FAILED_TO_SYNC_BUFFER_OBJECT;
+// 								break; //out of loop
+// 							}
+// 						}
+// 					}
+// 				}
+// 			}
+// 		}
 
-	}
+// 	}
 
 
-	if (retval == XLNX_OK)
-	{
-		m_lastReadHeadIndex = currentHeadIndex;
-		m_lastReadTailIndex = currentTailIndex;
-	}
+// 	if (retval == XLNX_OK)
+// 	{
+// 		m_lastReadHeadIndex = currentHeadIndex;
+// 		m_lastReadTailIndex = currentTailIndex;
+// 	}
 
-	return retval;
-}
+// 	return retval;
+// }
 
 
 
-uint32_t MM2S::GetHWRingReadBufferIndexes(uint32_t* pHeadIndex, uint32_t* pTailIndex)
-{
-	uint32_t retval = XLNX_OK;
+// uint32_t MM2S::GetHWRingReadBufferIndexes(uint32_t* pHeadIndex, uint32_t* pTailIndex)
+// {
+// 	uint32_t retval = XLNX_OK;
 
-	if (retval == XLNX_OK)
-	{
-		retval = ReadReg32(mm2s_RING_READ_BUFFER_HEAD_INDEX_OFFSET, pHeadIndex);
-	}
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = ReadReg32(mm2s_RING_READ_BUFFER_HEAD_INDEX_OFFSET, pHeadIndex);
+// 	}
 
 
-	if (retval == XLNX_OK)
-	{
-		retval = ReadReg32(mm2s_RING_READ_BUFFER_TAIL_INDEX_OFFSET, pTailIndex);
-	}
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = ReadReg32(mm2s_RING_READ_BUFFER_TAIL_INDEX_OFFSET, pTailIndex);
+// 	}
 
-	return retval;
-}
+// 	return retval;
+// }
 
 
 
 
-uint32_t MM2S::GetSWRingReadBufferIndexes(uint32_t* pHeadIndex, uint32_t* pTailIndex)
-{
-	uint32_t retval = XLNX_OK;
+// uint32_t MM2S::GetSWRingReadBufferIndexes(uint32_t* pHeadIndex, uint32_t* pTailIndex)
+// {
+// 	uint32_t retval = XLNX_OK;
 
-	*pHeadIndex = m_lastReadHeadIndex;
-	*pTailIndex = m_lastReadTailIndex;
+// 	*pHeadIndex = m_lastReadHeadIndex;
+// 	*pTailIndex = m_lastReadTailIndex;
 
-	return retval;
-}
+// 	return retval;
+// }
 
 
 
 
 
 
-uint32_t MM2S::SetHWRingReadHeadIndex(uint32_t headIndex)
-{
-	uint32_t retval = XLNX_OK;
+// uint32_t MM2S::SetHWRingReadHeadIndex(uint32_t headIndex)
+// {
+// 	uint32_t retval = XLNX_OK;
 
-	retval = CheckIsInitialised();
+// 	retval = CheckIsInitialised();
 
-	if (retval == XLNX_OK)
-	{
-		retval = WriteReg32(mm2s_RING_READ_BUFFER_HEAD_INDEX_OFFSET, headIndex);
-	}
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = WriteReg32(mm2s_RING_READ_BUFFER_HEAD_INDEX_OFFSET, headIndex);
+// 	}
 
-	return retval;
-}
+// 	return retval;
+// }
 
 
 
 
 
-uint32_t MM2S::GetStats(Stats* pStats)
-{
-	uint32_t retval = XLNX_OK;
+// uint32_t MM2S::GetStats(Stats* pStats)
+// {
+// 	uint32_t retval = XLNX_OK;
 
-	memset(pStats, 0, sizeof(Stats));
+// 	memset(pStats, 0, sizeof(Stats));
 
-	retval = CheckIsInitialised();
+// 	retval = CheckIsInitialised();
 
-	if (retval == XLNX_OK)
-	{
-		retval = ReadReg32(mm2s_TX_RESPONSE_INDEX_OFFSET, &(pStats->txResponseCount));
-	}
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = ReadReg32(mm2s_TX_RESPONSE_INDEX_OFFSET, &(pStats->txResponseCount));
+// 	}
 
-	if (retval == XLNX_OK)
-	{
-		retval = ReadReg32(mm2s_NUM_RX_OP_OFFSET, &(pStats->rxOp));
-	}
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = ReadReg32(mm2s_NUM_RX_OP_OFFSET, &(pStats->rxOp));
+// 	}
 
-	return retval;
-}
+// 	return retval;
+// }
 
 
 
@@ -1188,115 +1189,74 @@ uint32_t MM2S::GetStats(Stats* pStats)
 
 
 // latency counters
-uint32_t MM2S::GetLatencyStats(uint32_t durationSeconds, double* max, double* min, double* sum, uint32_t* cnt, uint32_t* cyclesPre, uint32_t* cyclesPost)
-{
-	uint32_t retval = XLNX_OK;
-	uint32_t clockFrequencyArray[DeviceInterface::MAX_SUPPORTED_CLOCKS];
-    uint32_t clockFrequencyMHz;
-	uint32_t numClocks;
-	uint32_t multiplier;
-    uint32_t val;
+// uint32_t MM2S::GetLatencyStats(uint32_t durationSeconds, double* max, double* min, double* sum, uint32_t* cnt, uint32_t* cyclesPre, uint32_t* cyclesPost)
+// {
+// 	uint32_t retval = XLNX_OK;
+// 	uint32_t clockFrequencyArray[DeviceInterface::MAX_SUPPORTED_CLOCKS];
+//     uint32_t clockFrequencyMHz;
+// 	uint32_t numClocks;
+// 	uint32_t multiplier;
+//     uint32_t val;
 
-	retval = CheckIsInitialised();
+// 	retval = CheckIsInitialised();
 
-	if (retval == XLNX_OK)
-	{
-		retval = m_pDeviceInterface->GetClocks(clockFrequencyArray, &numClocks);
-	}
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = m_pDeviceInterface->GetClocks(clockFrequencyArray, &numClocks);
+// 	}
 
-    if (retval == XLNX_OK)
-    {
-        clockFrequencyMHz = clockFrequencyArray[0]; //NOTE - assuming our clock is the first one in the list
-    }
+//     if (retval == XLNX_OK)
+//     {
+//         clockFrequencyMHz = clockFrequencyArray[0]; //NOTE - assuming our clock is the first one in the list
+//     }
 
-	if (retval == XLNX_OK)
-	{
-		//The counters do not increment each clock cycle...so first we need to figure out a multiplication factor...
-		retval = ReadReg32(mm2s_CYCLES_PRE_OFFSET, &val);
-		multiplier = (uint32_t)((double)(durationSeconds * 1000000) / ((double)val / (double)clockFrequencyMHz) + 0.5);
-	}
-
-
-
-
-	if (retval == XLNX_OK)
-	{
-		retval = ReadReg32(mm2s_LATENCY_MIN_OFFSET, &val);
-	    *min = (double)val * (double)multiplier / (double)clockFrequencyMHz;
-	}
-
-	if (retval == XLNX_OK)
-	{
-		retval = ReadReg32(mm2s_LATENCY_MAX_OFFSET, &val);
-	    *max = (double)val * (double)multiplier / (double)clockFrequencyMHz;
-	}
-
-	if (retval == XLNX_OK)
-	{
-		retval = ReadReg32(mm2s_LATENCY_SUM_OFFSET, &val);
-	    *sum = (double)val * (double)multiplier / (double)clockFrequencyMHz;
-	}
-
-	if (retval == XLNX_OK)
-	{
-		retval = ReadReg32(mm2s_LATENCY_CNT_OFFSET, cnt);
-	}
-
-	if (retval == XLNX_OK)
-	{
-		retval = ReadReg32(mm2s_CYCLES_PRE_OFFSET, &val);
-		*cyclesPre = (uint32_t)(((double)val * (double)multiplier / (double)clockFrequencyMHz) + 0.5);
-	}
-
-	if (retval == XLNX_OK)
-	{
-		retval = ReadReg32(mm2s_CYCLES_POST_OFFSET, &val);
-		*cyclesPost = (uint32_t)(((double)val * (double)multiplier / (double)clockFrequencyMHz) + 0.5);
-	}
-
-	return retval;
-}
+// 	if (retval == XLNX_OK)
+// 	{
+// 		//The counters do not increment each clock cycle...so first we need to figure out a multiplication factor...
+// 		retval = ReadReg32(mm2s_CYCLES_PRE_OFFSET, &val);
+// 		multiplier = (uint32_t)((double)(durationSeconds * 1000000) / ((double)val / (double)clockFrequencyMHz) + 0.5);
+// 	}
 
 
 
 
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = ReadReg32(mm2s_LATENCY_MIN_OFFSET, &val);
+// 	    *min = (double)val * (double)multiplier / (double)clockFrequencyMHz;
+// 	}
 
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = ReadReg32(mm2s_LATENCY_MAX_OFFSET, &val);
+// 	    *max = (double)val * (double)multiplier / (double)clockFrequencyMHz;
+// 	}
 
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = ReadReg32(mm2s_LATENCY_SUM_OFFSET, &val);
+// 	    *sum = (double)val * (double)multiplier / (double)clockFrequencyMHz;
+// 	}
 
-uint32_t MM2S::StartLatencyCounters(void)
-{
-    uint32_t retval = XLNX_OK;
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = ReadReg32(mm2s_LATENCY_CNT_OFFSET, cnt);
+// 	}
 
-	retval = CheckIsInitialised();
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = ReadReg32(mm2s_CYCLES_PRE_OFFSET, &val);
+// 		*cyclesPre = (uint32_t)(((double)val * (double)multiplier / (double)clockFrequencyMHz) + 0.5);
+// 	}
 
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = ReadReg32(mm2s_CYCLES_POST_OFFSET, &val);
+// 		*cyclesPost = (uint32_t)(((double)val * (double)multiplier / (double)clockFrequencyMHz) + 0.5);
+// 	}
 
-	/* toggle the bit to reset the counters */
-	if (retval == XLNX_OK)
-	{
-		retval = WriteRegWithMask32(mm2s_CTRL_OFFSET, 0x04, 0x04);
-	}
-
-	if (retval == XLNX_OK)
-	{
-		//The following sleep is to cope with the HW needing a small delay to reset its counters...
-		std::this_thread::sleep_for(std::chrono::milliseconds(5));
-	}
-
-
-	if (retval == XLNX_OK)
-	{
-		retval = WriteRegWithMask32(mm2s_CTRL_OFFSET, 0x00, 0x04);
-	}
-
-
-
-	/* enable the counters */
-	if(retval == XLNX_OK)
-	{
-		retval = WriteRegWithMask32(mm2s_CTRL_OFFSET, 0x02, 0x02);
-	}
-	return 0;
-}
+// 	return retval;
+// }
 
 
 
@@ -1304,19 +1264,60 @@ uint32_t MM2S::StartLatencyCounters(void)
 
 
 
-uint32_t MM2S::StopLatencyCounters(void)
-{
-	uint32_t retval = XLNX_OK;
+// uint32_t MM2S::StartLatencyCounters(void)
+// {
+//     uint32_t retval = XLNX_OK;
 
-	retval = CheckIsInitialised();
+// 	retval = CheckIsInitialised();
 
-	if (retval == XLNX_OK)
-	{
-		retval = WriteRegWithMask32(mm2s_CTRL_OFFSET, 0x00, 0x02);
-	}
 
-	return retval;
-}
+// 	/* toggle the bit to reset the counters */
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = WriteRegWithMask32(mm2s_CTRL_OFFSET, 0x04, 0x04);
+// 	}
+
+// 	if (retval == XLNX_OK)
+// 	{
+// 		//The following sleep is to cope with the HW needing a small delay to reset its counters...
+// 		std::this_thread::sleep_for(std::chrono::milliseconds(5));
+// 	}
+
+
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = WriteRegWithMask32(mm2s_CTRL_OFFSET, 0x00, 0x04);
+// 	}
+
+
+
+// 	/* enable the counters */
+// 	if(retval == XLNX_OK)
+// 	{
+// 		retval = WriteRegWithMask32(mm2s_CTRL_OFFSET, 0x02, 0x02);
+// 	}
+// 	return 0;
+// }
+
+
+
+
+
+
+
+// uint32_t MM2S::StopLatencyCounters(void)
+// {
+// 	uint32_t retval = XLNX_OK;
+
+// 	retval = CheckIsInitialised();
+
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = WriteRegWithMask32(mm2s_CTRL_OFFSET, 0x00, 0x02);
+// 	}
+
+// 	return retval;
+// }
 
 
 
@@ -1339,302 +1340,314 @@ uint64_t MM2S::GetWriteBufferHWAddress(void)
 
 
 
-
-
 uint32_t MM2S::SyncWriteBuffer(void)
 {
 	uint32_t retval = XLNX_OK;
 
-	retval = CheckIsInitialised();
-
-	if (retval == XLNX_OK)
+	retval = m_pDeviceInterface->SyncBuffer(m_pReadBufferDescriptor, DeviceInterface::SyncDirection::TO_DEVICE);
+	
+	if (retval != XLNX_OK)
 	{
-		//If this is the first time we are performing a sync, we need to set up our buffer object...
-		retval = SetupBuffersIfNecessary();
-	}
-
-	if (retval == XLNX_OK)
-	{
-		retval = SyncWriteBufferInternal();
+		retval = MM2S_ERROR_IO_FAILED;
 	}
 
 	return retval;
 }
 
+// uint32_t MM2S::SyncWriteBuffer(void)
+// {
+// 	uint32_t retval = XLNX_OK;
+
+// 	retval = CheckIsInitialised();
+
+// 	if (retval == XLNX_OK)
+// 	{
+// 		//If this is the first time we are performing a sync, we need to set up our buffer object...
+// 		retval = SetupBuffersIfNecessary();
+// 	}
 
-uint32_t MM2S::SyncWriteBufferInternal(void)
-{
-	uint32_t retval = XLNX_OK;
-	uint32_t currentSWHeadIndex;
-	uint32_t currentSWTailIndex;
-	uint32_t currentHWHeadIndex;
-	uint32_t currentHWTailIndex;
-	uint32_t maxElementsPerSync = m_maxDMAChunkSize;
-	uint32_t totalNewElements;
-	uint32_t totalTransferredElements;
-	uint32_t transferSizeInElements;
-	uint32_t offset;
-	uint32_t size;
-
-
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = SyncWriteBufferInternal();
+// 	}
+
+// 	return retval;
+// }
+
+
+// uint32_t MM2S::SyncWriteBufferInternal(void)
+// {
+// 	uint32_t retval = XLNX_OK;
+// 	uint32_t currentSWHeadIndex;
+// 	uint32_t currentSWTailIndex;
+// 	uint32_t currentHWHeadIndex;
+// 	uint32_t currentHWTailIndex;
+// 	uint32_t maxElementsPerSync = m_maxDMAChunkSize;
+// 	uint32_t totalNewElements;
+// 	uint32_t totalTransferredElements;
+// 	uint32_t transferSizeInElements;
+// 	uint32_t offset;
+// 	uint32_t size;
+
+
 
-
-	if (retval == XLNX_OK)
-	{
-		retval = GetSWRingWriteBufferIndexes(&currentSWHeadIndex, &currentSWTailIndex);
-	}
-
-	if (retval == XLNX_OK)
-	{
-		retval = GetHWRingWriteBufferIndexes(&currentHWHeadIndex, &currentHWTailIndex);
-	}
-
-
-
-
-	if (retval == XLNX_OK)
-	{
-		//We only need to manually sync the buffer if we are using CARD RAM
-		//If we are using the HOST BANK (i.e. the slave bridge), data is automatically sync'd
-		if (m_bUsingHostBank == false)
-		{
-			if (currentSWTailIndex > currentHWTailIndex)
-			{
+
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = GetSWRingWriteBufferIndexes(&currentSWHeadIndex, &currentSWTailIndex);
+// 	}
+
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = GetHWRingWriteBufferIndexes(&currentHWHeadIndex, &currentHWTailIndex);
+// 	}
+
+
+
+
+// 	if (retval == XLNX_OK)
+// 	{
+// 		//We only need to manually sync the buffer if we are using CARD RAM
+// 		//If we are using the HOST BANK (i.e. the slave bridge), data is automatically sync'd
+// 		if (m_bUsingHostBank == false)
+// 		{
+// 			if (currentSWTailIndex > currentHWTailIndex)
+// 			{
 
-				totalNewElements = currentSWTailIndex - currentHWTailIndex;
-				totalTransferredElements = 0;
+// 				totalNewElements = currentSWTailIndex - currentHWTailIndex;
+// 				totalTransferredElements = 0;
 
-				while (totalTransferredElements < totalNewElements)
-				{
-					if (maxElementsPerSync == 0)
-					{
-						//transfer ALL new elements in one go...
-						transferSizeInElements = totalNewElements;
-					}
-					else
-					{
-						//We want to limit each transfer to a maximum size...
-						transferSizeInElements = totalNewElements - totalTransferredElements;
-
-						if (transferSizeInElements > maxElementsPerSync)
-						{
-							transferSizeInElements = maxElementsPerSync;
-						}
-					}
-
-
-
-					offset = (currentHWTailIndex + totalTransferredElements) * WRITE_ELEMENT_SIZE;
-					size = transferSizeInElements * WRITE_ELEMENT_SIZE;
-
-					DMAStatsLogTransfer(&m_dmaH2CStats, size);
-
-
-					retval = m_pDeviceInterface->SyncBuffer(m_pWriteBufferDescriptor, DeviceInterface::SyncDirection::TO_DEVICE, size, offset);
-					if (retval == XLNX_OK)
-					{
-						totalTransferredElements += transferSizeInElements;
-					}
-					else
-					{
-						retval = mm2s_ERROR_FAILED_TO_SYNC_BUFFER_OBJECT;
-						break; //out of loop
-					}
-				}
-			}
-			else if (currentSWTailIndex < currentHWTailIndex)
-			{
-				//we will assume we have wrapped around...
-				//this means we have to do two syncs...one of the latter part of the buffer and one of the early part of the buffer...
-
-
-
-				totalNewElements = RING_SIZE - currentHWTailIndex;
-				totalTransferredElements = 0;
-
-				while (totalTransferredElements < totalNewElements)
-				{
-					if (maxElementsPerSync == 0)
-					{
-						//transfer ALL new elements in one go...
-						transferSizeInElements = totalNewElements;
-					}
-					else
-					{
-						//We want to limit each transfer to a maximum size...
-						transferSizeInElements = totalNewElements - totalTransferredElements;
+// 				while (totalTransferredElements < totalNewElements)
+// 				{
+// 					if (maxElementsPerSync == 0)
+// 					{
+// 						//transfer ALL new elements in one go...
+// 						transferSizeInElements = totalNewElements;
+// 					}
+// 					else
+// 					{
+// 						//We want to limit each transfer to a maximum size...
+// 						transferSizeInElements = totalNewElements - totalTransferredElements;
+
+// 						if (transferSizeInElements > maxElementsPerSync)
+// 						{
+// 							transferSizeInElements = maxElementsPerSync;
+// 						}
+// 					}
+
+
+
+// 					offset = (currentHWTailIndex + totalTransferredElements) * WRITE_ELEMENT_SIZE;
+// 					size = transferSizeInElements * WRITE_ELEMENT_SIZE;
+
+// 					DMAStatsLogTransfer(&m_dmaH2CStats, size);
+
+
+// 					retval = m_pDeviceInterface->SyncBuffer(m_pWriteBufferDescriptor, DeviceInterface::SyncDirection::TO_DEVICE, size, offset);
+// 					if (retval == XLNX_OK)
+// 					{
+// 						totalTransferredElements += transferSizeInElements;
+// 					}
+// 					else
+// 					{
+// 						retval = mm2s_ERROR_FAILED_TO_SYNC_BUFFER_OBJECT;
+// 						break; //out of loop
+// 					}
+// 				}
+// 			}
+// 			else if (currentSWTailIndex < currentHWTailIndex)
+// 			{
+// 				//we will assume we have wrapped around...
+// 				//this means we have to do two syncs...one of the latter part of the buffer and one of the early part of the buffer...
+
+
+
+// 				totalNewElements = RING_SIZE - currentHWTailIndex;
+// 				totalTransferredElements = 0;
+
+// 				while (totalTransferredElements < totalNewElements)
+// 				{
+// 					if (maxElementsPerSync == 0)
+// 					{
+// 						//transfer ALL new elements in one go...
+// 						transferSizeInElements = totalNewElements;
+// 					}
+// 					else
+// 					{
+// 						//We want to limit each transfer to a maximum size...
+// 						transferSizeInElements = totalNewElements - totalTransferredElements;
 
-						if (transferSizeInElements > maxElementsPerSync)
-						{
-							transferSizeInElements = maxElementsPerSync;
-						}
-					}
+// 						if (transferSizeInElements > maxElementsPerSync)
+// 						{
+// 							transferSizeInElements = maxElementsPerSync;
+// 						}
+// 					}
 
 
 
-					DMAStatsLogWrapAround(&m_dmaH2CStats);
+// 					DMAStatsLogWrapAround(&m_dmaH2CStats);
 
-					offset = (currentHWTailIndex + totalTransferredElements) * WRITE_ELEMENT_SIZE;
-					size = transferSizeInElements * WRITE_ELEMENT_SIZE;
+// 					offset = (currentHWTailIndex + totalTransferredElements) * WRITE_ELEMENT_SIZE;
+// 					size = transferSizeInElements * WRITE_ELEMENT_SIZE;
 
-					DMAStatsLogTransfer(&m_dmaH2CStats, size);
+// 					DMAStatsLogTransfer(&m_dmaH2CStats, size);
 
-					retval = m_pDeviceInterface->SyncBuffer(m_pWriteBufferDescriptor, DeviceInterface::SyncDirection::TO_DEVICE, size, offset);
-					if (retval == XLNX_OK)
-					{
-						totalTransferredElements += transferSizeInElements;
-					}
-					else
-					{
-						retval = mm2s_ERROR_FAILED_TO_SYNC_BUFFER_OBJECT;
-						break; //out of loop
-					}
-				}
+// 					retval = m_pDeviceInterface->SyncBuffer(m_pWriteBufferDescriptor, DeviceInterface::SyncDirection::TO_DEVICE, size, offset);
+// 					if (retval == XLNX_OK)
+// 					{
+// 						totalTransferredElements += transferSizeInElements;
+// 					}
+// 					else
+// 					{
+// 						retval = mm2s_ERROR_FAILED_TO_SYNC_BUFFER_OBJECT;
+// 						break; //out of loop
+// 					}
+// 				}
 
 
 
 
-				//
-				//Now for the early part of the buffer
-				//
+// 				//
+// 				//Now for the early part of the buffer
+// 				//
 
-				if (retval == XLNX_OK)
-				{
-					totalNewElements = currentSWTailIndex; //i.e from index 0 to currentSWTailIndex
-					totalTransferredElements = 0;
+// 				if (retval == XLNX_OK)
+// 				{
+// 					totalNewElements = currentSWTailIndex; //i.e from index 0 to currentSWTailIndex
+// 					totalTransferredElements = 0;
 
-					while (totalTransferredElements < totalNewElements)
-					{
-						if (maxElementsPerSync == 0)
-						{
-							//transfer ALL new elements in one go...
-							transferSizeInElements = totalNewElements;
-						}
-						else
-						{
-							//We want to limit each transfer to a maximum size...
-							transferSizeInElements = totalNewElements - totalTransferredElements;
+// 					while (totalTransferredElements < totalNewElements)
+// 					{
+// 						if (maxElementsPerSync == 0)
+// 						{
+// 							//transfer ALL new elements in one go...
+// 							transferSizeInElements = totalNewElements;
+// 						}
+// 						else
+// 						{
+// 							//We want to limit each transfer to a maximum size...
+// 							transferSizeInElements = totalNewElements - totalTransferredElements;
 
-							if (transferSizeInElements > maxElementsPerSync)
-							{
-								transferSizeInElements = maxElementsPerSync;
-							}
-						}
+// 							if (transferSizeInElements > maxElementsPerSync)
+// 							{
+// 								transferSizeInElements = maxElementsPerSync;
+// 							}
+// 						}
 
-						offset = 0 + totalTransferredElements;
-						size = transferSizeInElements * WRITE_ELEMENT_SIZE;
+// 						offset = 0 + totalTransferredElements;
+// 						size = transferSizeInElements * WRITE_ELEMENT_SIZE;
 
-						DMAStatsLogTransfer(&m_dmaH2CStats, size);
+// 						DMAStatsLogTransfer(&m_dmaH2CStats, size);
 
-						if (size > 0)
-						{
-							retval = m_pDeviceInterface->SyncBuffer(m_pWriteBufferDescriptor, DeviceInterface::SyncDirection::TO_DEVICE, size, offset);
-							if (retval == XLNX_OK)
-							{
-								totalTransferredElements += transferSizeInElements;
-							}
-							else
-							{
-								retval = mm2s_ERROR_FAILED_TO_SYNC_BUFFER_OBJECT;
-								break; //out of loop
-							}
-						}
+// 						if (size > 0)
+// 						{
+// 							retval = m_pDeviceInterface->SyncBuffer(m_pWriteBufferDescriptor, DeviceInterface::SyncDirection::TO_DEVICE, size, offset);
+// 							if (retval == XLNX_OK)
+// 							{
+// 								totalTransferredElements += transferSizeInElements;
+// 							}
+// 							else
+// 							{
+// 								retval = mm2s_ERROR_FAILED_TO_SYNC_BUFFER_OBJECT;
+// 								break; //out of loop
+// 							}
+// 						}
 
-					}
+// 					}
 
-				}
-			}
-		}
+// 				}
+// 			}
+// 		}
 
-	}
+// 	}
 
 
 
-    if (retval == XLNX_OK)
-    {
-		//Set the HW tail to match the SW tail...this will notify HW that new data is available...
-        retval = SetHWWriteTailIndex(currentSWTailIndex);
-    }
+//     if (retval == XLNX_OK)
+//     {
+// 		//Set the HW tail to match the SW tail...this will notify HW that new data is available...
+//         retval = SetHWWriteTailIndex(currentSWTailIndex);
+//     }
 
 
 
-	return retval;
-}
+// 	return retval;
+// }
 
 
 
-uint32_t MM2S::GetHWRingWriteBufferIndexes(uint32_t* pHeadIndex, uint32_t* pTailIndex)
-{
-	uint32_t retval = XLNX_OK;
+// uint32_t MM2S::GetHWRingWriteBufferIndexes(uint32_t* pHeadIndex, uint32_t* pTailIndex)
+// {
+// 	uint32_t retval = XLNX_OK;
 
-	if (retval == XLNX_OK)
-	{
-		retval = ReadReg32(mm2s_RING_WRITE_BUFFER_HEAD_INDEX_OFFSET, pHeadIndex);
-	}
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = ReadReg32(mm2s_RING_WRITE_BUFFER_HEAD_INDEX_OFFSET, pHeadIndex);
+// 	}
 
 
-	if (retval == XLNX_OK)
-	{
-		retval = ReadReg32(mm2s_RING_WRITE_BUFFER_TAIL_INDEX_OFFSET, pTailIndex);
-	}
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = ReadReg32(mm2s_RING_WRITE_BUFFER_TAIL_INDEX_OFFSET, pTailIndex);
+// 	}
 
-	return retval;
-}
+// 	return retval;
+// }
 
 
 
 
-uint32_t MM2S::GetSWRingWriteBufferIndexes(uint32_t* pHeadIndex, uint32_t* pTailIndex)
-{
-	uint32_t retval = XLNX_OK;
+// uint32_t MM2S::GetSWRingWriteBufferIndexes(uint32_t* pHeadIndex, uint32_t* pTailIndex)
+// {
+// 	uint32_t retval = XLNX_OK;
 
-	*pHeadIndex = m_lastWriteHeadIndex;
-	*pTailIndex = m_lastWriteTailIndex;
+// 	*pHeadIndex = m_lastWriteHeadIndex;
+// 	*pTailIndex = m_lastWriteTailIndex;
 
-	return retval;
-}
+// 	return retval;
+// }
 
 
 
 
-void MM2S::SetSWWriteTailIndex(uint32_t tailIndex)
-{
-	m_lastWriteTailIndex = tailIndex;
-}
+// void MM2S::SetSWWriteTailIndex(uint32_t tailIndex)
+// {
+// 	m_lastWriteTailIndex = tailIndex;
+// }
 
 
 
 
 
-uint32_t MM2S::SetHWWriteTailIndex(uint32_t tailIndex)
-{
-	uint32_t retval = XLNX_OK;
+// uint32_t MM2S::SetHWWriteTailIndex(uint32_t tailIndex)
+// {
+// 	uint32_t retval = XLNX_OK;
 
-	retval = CheckIsInitialised();
+// 	retval = CheckIsInitialised();
 
-	if (retval == XLNX_OK)
-	{
-		retval = WriteReg32(mm2s_RING_WRITE_BUFFER_TAIL_INDEX_OFFSET, tailIndex);
-	}
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = WriteReg32(mm2s_RING_WRITE_BUFFER_TAIL_INDEX_OFFSET, tailIndex);
+// 	}
 
-	return retval;
-}
+// 	return retval;
+// }
 
 
 
-uint32_t MM2S::SetThrottleRate(uint32_t throttleRateClockCycles)
-{
-	uint32_t retval = XLNX_OK;
+// uint32_t MM2S::SetThrottleRate(uint32_t throttleRateClockCycles)
+// {
+// 	uint32_t retval = XLNX_OK;
 
-	retval = CheckIsInitialised();
+// 	retval = CheckIsInitialised();
 
-	if (retval == XLNX_OK)
-	{
-		retval = WriteReg32(mm2s_THROTTLE_RATE_OFFSET, throttleRateClockCycles);
-	}
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = WriteReg32(mm2s_THROTTLE_RATE_OFFSET, throttleRateClockCycles);
+// 	}
 
-	return retval;
-}
+// 	return retval;
+// }
 
 
 
@@ -1642,107 +1655,107 @@ uint32_t MM2S::SetThrottleRate(uint32_t throttleRateClockCycles)
 
 
 
-uint32_t MM2S::GetThrottleRate(uint32_t* pThrottleRateClockCycles)
-{
-	uint32_t retval = XLNX_OK;
+// uint32_t MM2S::GetThrottleRate(uint32_t* pThrottleRateClockCycles)
+// {
+// 	uint32_t retval = XLNX_OK;
 
-	retval = CheckIsInitialised();
+// 	retval = CheckIsInitialised();
 
-	if (retval == XLNX_OK)
-	{
-		retval = ReadReg32(mm2s_THROTTLE_RATE_OFFSET, pThrottleRateClockCycles);
-	}
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = ReadReg32(mm2s_THROTTLE_RATE_OFFSET, pThrottleRateClockCycles);
+// 	}
 
-	return retval;
-}
+// 	return retval;
+// }
 
 
 
 
-uint32_t MM2S::GetThrottleStats(ThrottleStats* pStats)
-{
-	uint32_t retval = XLNX_OK;
+// uint32_t MM2S::GetThrottleStats(ThrottleStats* pStats)
+// {
+// 	uint32_t retval = XLNX_OK;
 
-	memset(pStats, 0, sizeof(ThrottleStats));
+// 	memset(pStats, 0, sizeof(ThrottleStats));
 
 
-	retval = CheckIsInitialised();
+// 	retval = CheckIsInitialised();
 
 
 
-	if (retval == XLNX_OK)
-	{
-		retval = ReadReg32(mm2s_THROTTLE_COUNT_OFFSET, &(pStats->throttleCounter));
-	}
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = ReadReg32(mm2s_THROTTLE_COUNT_OFFSET, &(pStats->throttleCounter));
+// 	}
 
-	if (retval == XLNX_OK)
-	{
-		retval = ReadReg32(mm2s_TROTTLE_EVENT_OFFSET, &(pStats->throttleEvents));
-	}
+// 	if (retval == XLNX_OK)
+// 	{
+// 		retval = ReadReg32(mm2s_TROTTLE_EVENT_OFFSET, &(pStats->throttleEvents));
+// 	}
 
-	return retval;
-}
+// 	return retval;
+// }
 
 
 
-void MM2S::GetDMAStats(DMAStats* pH2CStats, DMAStats* pC2HStats)
-{
-	*pH2CStats = m_dmaH2CStats;
-	*pC2HStats = m_dmaC2HStats;
-}
+// void MM2S::GetDMAStats(DMAStats* pH2CStats, DMAStats* pC2HStats)
+// {
+// 	*pH2CStats = m_dmaH2CStats;
+// 	*pC2HStats = m_dmaC2HStats;
+// }
 
 
 
-void MM2S::ResetDMAStats(void)
-{
-	memset(&m_dmaH2CStats, 0, sizeof(m_dmaH2CStats));
-	memset(&m_dmaC2HStats, 0, sizeof(m_dmaC2HStats));
-}
+// void MM2S::ResetDMAStats(void)
+// {
+// 	memset(&m_dmaH2CStats, 0, sizeof(m_dmaH2CStats));
+// 	memset(&m_dmaC2HStats, 0, sizeof(m_dmaC2HStats));
+// }
 
 
 
-void MM2S::DMAStatsLogWrapAround(DMAStats* pStats)
-{
-	pStats->bufferWrapArounds++;
-}
+// void MM2S::DMAStatsLogWrapAround(DMAStats* pStats)
+// {
+// 	pStats->bufferWrapArounds++;
+// }
 
 
-void MM2S::DMAStatsLogTransfer(DMAStats* pStats, uint32_t size)
-{
-	pStats->totalSyncOperations++;
-	pStats->totalBytesTransferred += size;
+// void MM2S::DMAStatsLogTransfer(DMAStats* pStats, uint32_t size)
+// {
+// 	pStats->totalSyncOperations++;
+// 	pStats->totalBytesTransferred += size;
 
-	if (size > pStats->transferHighTide)
-	{
-		pStats->transferHighTide = size;
-	}
-}
+// 	if (size > pStats->transferHighTide)
+// 	{
+// 		pStats->transferHighTide = size;
+// 	}
+// }
 
 
 
 
 
-void MM2S::SetDMAChunkSize(uint32_t numElements)
-{
-	m_maxDMAChunkSize = numElements;
-}
+// void MM2S::SetDMAChunkSize(uint32_t numElements)
+// {
+// 	m_maxDMAChunkSize = numElements;
+// }
 
 
 
-void MM2S::GetDMAChunkSize(uint32_t* pNumElements)
-{
-	*pNumElements = m_maxDMAChunkSize;
-}
+// void MM2S::GetDMAChunkSize(uint32_t* pNumElements)
+// {
+// 	*pNumElements = m_maxDMAChunkSize;
+// }
 
 
 
-void MM2S::SetHWEmulationPollDelay(uint32_t delaySeconds)
-{
-	m_hwEmulationPollDelaySeconds = delaySeconds;
-}
+// void MM2S::SetHWEmulationPollDelay(uint32_t delaySeconds)
+// {
+// 	m_hwEmulationPollDelaySeconds = delaySeconds;
+// }
 
 
-void MM2S::GetHWEmulationPollDelay(uint32_t* pDelaySeconds)
-{
-	*pDelaySeconds = m_hwEmulationPollDelaySeconds;
-}
+// void MM2S::GetHWEmulationPollDelay(uint32_t* pDelaySeconds)
+// {
+// 	*pDelaySeconds = m_hwEmulationPollDelaySeconds;
+// }

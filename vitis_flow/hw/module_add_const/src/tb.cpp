@@ -2,7 +2,7 @@
 
 int main(){
     
-    axiWordStream_t input_stream, output_stream;
+    axiDataStream_t input_stream, output_stream;
 
     // generate random input in array
     int length = 64;
@@ -30,18 +30,24 @@ int main(){
     }
 
     // hardware compute
+    bool last = false;
     for(int i = 0; i < length; i++){
-        axiWord_t input_line, output_line;
+        axiDataBus bus_in;
         for(int j = 0; j < NUM_WORD; j++){
-            input_line.range((j+1)*DATA_WIDTH-1, j*DATA_WIDTH) = input_data[i][j];
+            bus_in.data.range((j+1)*DATA_WIDTH-1, j*DATA_WIDTH) = input_data[i][j];
         }
 
-        input_stream.write(input_line);
+        bus_in.last = (i == length - 1)? 1: 0;
+
+        input_stream.write(bus_in);
+
         addConstantTop(input_stream, output_stream);
-        output_line = output_stream.read();
+
+        axiDataBus bus_out = output_stream.read();
         for(int j = 0; j < NUM_WORD; j++){
-            hw_output[i][j] = output_line.range((j+1)*DATA_WIDTH-1, j*DATA_WIDTH);
+            hw_output[i][j] = bus_out.data.range((j+1)*DATA_WIDTH-1, j*DATA_WIDTH);
         }
+        if(i == (length - 1)) last = bus_out.last;
     }
     
 
@@ -53,5 +59,7 @@ int main(){
         }
     }
     
+    if(!last) err++;
+
     return err;
 }

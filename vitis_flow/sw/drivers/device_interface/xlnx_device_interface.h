@@ -91,7 +91,8 @@ public:
 	* @returns A NULL-terminated string of the device name.
 	*/
 	virtual char* GetDeviceName(void) = 0;
-
+	virtual xclDeviceHandle GetDeviceHandle(void) = 0;
+	// virtual xclDeviceInfo2 GetDeviceInfo2(void) = 0;
 
 	/**
 	* @brief Retrieves the PCI DBDF numbers of the associated device/card
@@ -226,6 +227,8 @@ public:
 	*/
 	virtual uint32_t GetCUIndex(const char* cuName, uint32_t* cuIndex) = 0;
 
+
+	virtual uint32_t Wait(void) = 0;
 
 	/**
 	* @brief Read the contents of a single 32-bit register
