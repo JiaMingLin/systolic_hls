@@ -1,0 +1,27 @@
+{
+    "schema_version": {
+        "major": "1",
+        "minor": "4",
+        "patch": "0"
+    },
+    "generation": {
+        "this_file": "\/home\/robin\/workspace\/experiments\/systolic_hls_bak\/vitis_flow\/build\/xrt.run_summary",
+        "source": "vp",
+        "PID": "469025",
+        "timestamp": "1720075997782",
+        "target": "TT_HW",
+        "flags": [
+            ""
+        ]
+    },
+    "files": [
+        {
+            "name": "device_trace_0.csv",
+            "type": "VP_TRACE"
+        },
+        {
+            "name": "device_trace_1.csv",
+            "type": "VP_TRACE"
+        }
+    ]
+}
