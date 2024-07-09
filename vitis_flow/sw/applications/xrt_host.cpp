@@ -109,9 +109,11 @@ int main(int argc, char** argv) {
     auto uuid = device.load_xclbin(binaryFile);
 
     std::cout << "Initialize kernek: mm2sTop:mm2s at uuid = " << uuid << std::endl;
-    auto mm2s_krnl = xrt::kernel(device, uuid, "mm2sTop", xrt::kernel::cu_access_mode::exclusive); //
+    auto mm2s_krnl = xrt::kernel(device, uuid, "mm2sTop", 
+				xrt::kernel::cu_access_mode::exclusive); //
     std::cout << "Initialize kernek: s2mm at uuid = " << uuid << std::endl;
-    auto s2mm_krnl = xrt::kernel(device, uuid, "s2mmTop", xrt::kernel::cu_access_mode::exclusive); // 
+    auto s2mm_krnl = xrt::kernel(device, uuid, "s2mmTop", 
+				xrt::kernel::cu_access_mode::exclusive); // 
 
     std::cout << "Allocate Buffer in Global Memory\n";
     size_t data_size_bytes = sizeof(ap_uint<BUS_WIDTH>) * DATA_SIZE;
