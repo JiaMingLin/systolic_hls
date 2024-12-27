@@ -128,7 +128,7 @@ int main(int argc, char** argv) {
         ap_uint<BUS_WIDTH> input_bus;
         for(int j = 0; j < IN_WORD_LEN; j++){
             input_bus.range((j+1) * IN_DATA_WIDTH - 1, j * IN_DATA_WIDTH) 
-            = (ap_uint<DATA_WIDTH>)(in_data_t(input_data[i][j]) * (1 << IN_FRAC_BITS));
+            = (ap_uint<IN_DATA_WIDTH>)(in_data_t(input_data[i][j]) * (1 << IN_FRAC_BITS));
         }
         input_bo_map[i] = input_bus;
     }
@@ -160,7 +160,7 @@ int main(int argc, char** argv) {
     for(int i = 0; i < data_size; i++){
         std::vector<out_data_t> hw_output_row;
         for(int j = 0; j < OUT_WORD_LEN; j++){
-            hw_output_row.push_back(out_data_t(output_bo_map[i].range((j+1) * DATA_WIDTH - 1, j * DATA_WIDTH))/(1 << OUT_FRAC_BITS));
+            hw_output_row.push_back(out_data_t(output_bo_map[i].range((j+1) * OUT_DATA_WIDTH - 1, j * OUT_DATA_WIDTH))/(1 << OUT_FRAC_BITS));
         }
         hw_output_data.push_back(hw_output_row);
     }
