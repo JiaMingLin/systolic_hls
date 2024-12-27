@@ -2,5 +2,5 @@
 
 bash build_sw.sh
 pushd build_hw
-./vitis_flow.exe
+./accel_val_wrapper.exe
 popd
