@@ -139,7 +139,7 @@ int main(int argc, char** argv) {
     int status = 1;
     auto mm2s_run = xrt::run(mm2s_krnl);
     mm2s_run.set_arg(0, input_buffer);
-    mm2s_run.set_arg(2, DATA_SIZE);
+    mm2s_run.set_arg(2, data_size);
 
     auto s2mm_run = xrt::run(s2mm_krnl);
     s2mm_run.set_arg(1, output_buffer);
