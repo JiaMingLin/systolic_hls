@@ -172,6 +172,12 @@ int main(int argc, char** argv) {
     int err = 0;
     for(int i = 0; i < data_size; i++){
         int hw_argmax = std::max_element(hw_output_data[i].begin(), hw_output_data[i].end()) - hw_output_data[i].begin();
+        // print the hw_output_data[i]
+        std::cout << "hw_output_data[" << i << "] = ";
+        for(int j = 0; j < OUT_WORD_LEN; j++){
+            std::cout << hw_output_data[i][j] << " ";
+        }
+        std::cout << std::endl;
         int gt_argmax = std::max_element(ground_truth[i].begin(), ground_truth[i].end()) - ground_truth[i].begin();
         if(hw_argmax != gt_argmax){
             err++;
