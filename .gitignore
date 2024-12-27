@@ -33,6 +33,7 @@
 
 solution*
 hls_prj*
+hls_proj*
 .apc
 .cproject
 .project
@@ -53,3 +54,5 @@ xo/*
 xo*
 *.json
 *.xo
+firmware*
+firmware/*
