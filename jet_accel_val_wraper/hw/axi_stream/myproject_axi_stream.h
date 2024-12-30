@@ -4,7 +4,9 @@
 #include <iostream>
 #include <ap_int.h>
 #include<hls_stream.h>
+// #ifdef __SYNTHESIS__
 #include "myproject.h"
+// #endif
 
 static const unsigned N_IN = 16;
 static const unsigned N_OUT = 5;
