@@ -36,5 +36,8 @@ typedef struct axis_out_data_bus{
 typedef hls::stream<axis_in_data_bus> axis_in_stream_t;
 typedef hls::stream<axis_out_data_bus> axis_out_stream_t;
 
+typedef ap_fixed<IN_DATA_WIDTH+IN_FRAC_BITS,IN_DATA_WIDTH> in_extended_t;
+typedef ap_fixed<OUT_DATA_WIDTH+OUT_FRAC_BITS,OUT_DATA_WIDTH> out_extended_t;
+
 void myproject_axi_stream(axis_in_stream_t &in, axis_out_stream_t &out);
 #endif

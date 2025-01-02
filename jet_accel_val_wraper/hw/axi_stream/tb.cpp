@@ -47,8 +47,9 @@ int main(){
         axis_in_data_bus input_bus;
         // encode input
         for(int j = 0; j < N_IN; j++){
-            input_bus.data.range((j+1) * IN_DATA_WIDTH - 1, j * IN_DATA_WIDTH) 
-            = input[i][j].range(IN_DATA_WIDTH-1, 0);
+            in_extended_t in_extended = in_extended_t(input[i][j]);
+            ap_uint<IN_DATA_WIDTH> encoded_input_data = ap_uint<IN_DATA_WIDTH>(in_extended << IN_FRAC_BITS);
+            input_bus.data.range((j+1) * IN_DATA_WIDTH - 1, j * IN_DATA_WIDTH) = encoded_input_data;
         }
         input_bus.last = (i == (length-1));
         input_bo_map.write(input_bus);
@@ -58,8 +59,9 @@ int main(){
         // decode output
         axis_out_data_bus output_bus = output_bo_map.read();
         for(int j = 0; j < N_OUT; j++){ 
-            T_out output_data;
-            output_data.range(OUT_DATA_WIDTH-1, 0) = output_bus.data.range((j+1) * OUT_DATA_WIDTH - 1, j * OUT_DATA_WIDTH);
+            ap_uint<OUT_DATA_WIDTH> temp = output_bus.data.range((j+1) * OUT_DATA_WIDTH - 1, j * OUT_DATA_WIDTH);
+            out_extended_t out_extended = out_extended_t(temp);
+            T_out output_data = T_out(out_extended >> OUT_FRAC_BITS);
             bool last = output_bus.last;
             std::cout << " output_data " << output_data.to_string(10).c_str() << std::endl;
         }

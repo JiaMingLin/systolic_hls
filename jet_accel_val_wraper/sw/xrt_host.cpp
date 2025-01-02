@@ -84,7 +84,24 @@ bool load_test_data(std::vector<std::vector<float>>& input_data,
 }
 
 int main(int argc, char** argv) {
-	
+
+    /*
+    in_data_t input_value = 1.8234652;
+    std::cout << "input_value = " << input_value << ", binary representation = " << input_value.to_string(2,16).c_str() << std::endl;
+    // encode
+    ap_uint<IN_DATA_WIDTH> encoded_input_value = ap_uint<IN_DATA_WIDTH>(
+            ap_fixed<IN_DATA_WIDTH+IN_FRAC_BITS,IN_DATA_WIDTH>(input_value) << IN_FRAC_BITS
+        );
+    std::cout << "encoded_input_value = " << encoded_input_value << ", binary representation = " << encoded_input_value.to_string(2,16).c_str() << std::endl;
+
+    // decode
+    in_data_t decoded_input_value = in_data_t(
+            ap_fixed<IN_DATA_WIDTH+IN_FRAC_BITS,IN_DATA_WIDTH>(encoded_input_value) >> IN_FRAC_BITS
+        );
+    std::cout << "decoded_input_value = " << decoded_input_value << ", binary representation = " << decoded_input_value.to_string(2,16).c_str() << std::endl;
+
+    */
+
     ap_uint<BUS_WIDTH> *data_in, *data_out;
 
     std::vector<std::vector<float>> input_data;
